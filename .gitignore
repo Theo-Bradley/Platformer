@@ -1,2 +1,5 @@
 #Ignore external (probably uncompiled) libraries
 ext/*
+
+#ignore visual studio files
+.vs/*

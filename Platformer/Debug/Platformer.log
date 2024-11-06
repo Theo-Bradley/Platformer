@@ -1,0 +1,4 @@
+﻿main.obj : error LNK2019: unresolved external symbol _b2DefaultWorldDef referenced in function _SDL_main
+main.obj : error LNK2019: unresolved external symbol _b2CreateWorld referenced in function _SDL_main
+C:\Unreal Projects\Platformer\Platformer\lib\x86\box2d.lib : warning LNK4272: library machine type 'x64' conflicts with target machine type 'x86'
+C:\Unreal Projects\Platformer\Platformer\\build\Win32\Debug\Platformer.exe : fatal error LNK1120: 2 unresolved externals
