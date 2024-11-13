@@ -3,7 +3,6 @@
 #include <glad/glad.h>
 #include <SDL/SDL_opengl.h>
 #include <box2d/box2d.h>
-#include <GLM/glm.hpp>
 #include "types.h"
 float plane[12] = {
 	-0.5f, -0.5f, 0.0f,
