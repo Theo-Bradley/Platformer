@@ -16,10 +16,18 @@ unsigned int planeIndices[6] = {
 };
 
 const char* vert_default = "#version 330 core\n"
+"struct InstanceAttributes\n"
+"{\n"
+"vec2 position;\n"
+"vec2 scale;\n"
+"vec4 atlasRect;\n"
+"float rotation;\n"
+"};\n"
 "layout (location = 0) in vec3 position;\n"
+"layout (location = 1) in InstanceAttributes attribs;\n"
 "void main()\n"
 "{\n"
-"gl_Position = vec4(position.x, position.y, position.z, 1.0);\n"
+"gl_Position = vec4(attribs.position.x + position.x, attribs.position.y + position.y, 1.0, 1.0);\n"
 "}\0";
 
 const char* frag_default = "#version 330 core\n"
@@ -42,9 +50,13 @@ static SDL_Renderer* renderer; //main renderer
 SDL_GLContext glContext;
 bool running = true;
 GLuint errShader = 0;
-std::stack<unsigned int> FreeInstancedAttributeIndices; //only one copy allowed, main thread access only
-InstanceAttributes GlobalInstancedAttributes[MAX_SPRITES];
+std::stack<unsigned int> FreeInstanceAttributeIndices; //only one copy allowed, main thread access only
+InstanceAttributes GlobalInstanceAttributes[MAX_SPRITES];
+InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
+
+DrawableObject* skibidi;
+DrawableObject* toilet;
 
 int main(int argv, char** args)
 {
@@ -53,6 +65,7 @@ int main(int argv, char** args)
 	GLuint VBO = 0;
 	GLuint VIO = 0;
 	GLuint VAO = 0;
+	GLuint IBO = 0;
 	glGenBuffers(1, &VBO); //generate empty buffer
 	glGenBuffers(1, &VIO); //..
 	glGenVertexArrays(1, &VAO); //.. vertex array object
@@ -60,17 +73,39 @@ int main(int argv, char** args)
 	glBindBuffer(GL_ARRAY_BUFFER, VBO); //bind buffer
 	glBufferData(GL_ARRAY_BUFFER, sizeof(plane), plane, GL_STATIC_DRAW); //populate buffer
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); //set attribute read params
-	glEnableVertexAttribArray(0); //enable (read?) attrib
+	glEnableVertexAttribArray(0); //enable attrib
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VIO); //bind index buffer
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(planeIndices), planeIndices, GL_STATIC_DRAW); //populate
+	glGenBuffers(1, &IBO); //generate instance attribute buffer on GPU
+	glBindBuffer(GL_ARRAY_BUFFER, IBO);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (vec2 is two floats), stride (size of struct in bytes), start offset (bytes)
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)(2 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
+	glVertexAttribDivisor(1, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
+	glVertexAttribDivisor(2, 1); //..
+	glVertexAttribDivisor(3, 1); //..
+	glVertexAttribDivisor(4, 1); //..
+	glEnableVertexAttribArray(1); //"enable" the attribute
+	glEnableVertexAttribArray(2); //I think this just lets opengl read from it at draw time
+	glEnableVertexAttribArray(3); //not 100% sure
+	glEnableVertexAttribArray(4); //..
 
 	while (running)
 	{
 		loop();
 		//temp render code
 		glBindVertexArray(VAO); //bind plane VAO
+		
+		onscreenSprites = 0;
+		skibidi->DrawInstanced(GPUInstanceAttributes, &onscreenSprites); //populate tightly packed array
+		toilet->DrawInstanced(GPUInstanceAttributes, &onscreenSprites); //replace with some loop over all instanced sprites in this level
+		
+		glBindBuffer(GL_ARRAY_BUFFER, IBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GPUInstanceAttributes), GPUInstanceAttributes, GL_DYNAMIC_DRAW); //populate instance attrib buffer with tightly packed array
+
 		glUseProgram(errShader); //use basic shader
-		glDrawElements(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0); //draw indexed verts
+		glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, 2); //draw indexed verts instance
 		draw();
 	}
 
@@ -92,7 +127,7 @@ int init()
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5); //..
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); //..
 	SDL_Init(SDL_INIT_EVERYTHING); //initalize all SDL subsystems
-	window = SDL_CreateWindow("Platformer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL); //create new SDL OGL window
+	window = SDL_CreateWindow("Platformer", 0, 0, 1920, 1080, SDL_WINDOW_OPENGL); //create new SDL OGL window //SDL_WINDOWPOS_UNDEFINED //SDL_WINDOW_FULLSCREEN_DESKTOP |
 	if (!window) //if failed to create window
 		quit(-1); //quit with error code -1
 	glContext = SDL_GL_CreateContext(window); //Create GL context
@@ -126,13 +161,17 @@ int init()
 
 	for (unsigned int i = 1; i <= MAX_SPRITES; i++)
 	{
-		FreeInstancedAttributeIndices.push(MAX_SPRITES - i); //populate free indices stack
+		FreeInstanceAttributeIndices.push(MAX_SPRITES - i); //populate free indices stack
 	}
 
 	//Box2d
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	b2WorldId pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
+	skibidi = new DrawableObject(glm::fvec2(0.5f, 0.5f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes);
+	toilet = new DrawableObject(glm::fvec2(-0.5f, -0.5f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes);
+
+
 	return 0;
 }
 
@@ -178,4 +217,16 @@ void draw()
 static unsigned int GetNewInstancedAttributeIndex()
 {
 
+}
+
+static unsigned int PopFreeIndex()
+{
+	unsigned int newFreeIndex = FreeInstanceAttributeIndices.top();
+	FreeInstanceAttributeIndices.pop();
+	return newFreeIndex;
+}
+
+static void PushFreeIndex(unsigned int freeIndex)
+{
+	FreeInstanceAttributeIndices.push(freeIndex);
 }
