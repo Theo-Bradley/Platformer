@@ -4,6 +4,7 @@
 #include <SDL/SDL_opengl.h>
 #include <box2d/box2d.h>
 #include "types.h"
+
 float plane[12] = {
 	-0.5f, -0.5f, 0.0f,
 	0.5f, -0.5f, 0.0f,
@@ -18,16 +19,14 @@ unsigned int planeIndices[6] = {
 const char* vert_default = "#version 330 core\n"
 "struct InstanceAttributes\n"
 "{\n"
-"vec2 position;\n"
-"vec2 scale;\n"
+"mat4 pvmMatrix;"
 "vec4 atlasRect;\n"
-"float rotation;\n"
 "};\n"
 "layout (location = 0) in vec3 position;\n"
 "layout (location = 1) in InstanceAttributes attribs;\n"
 "void main()\n"
 "{\n"
-"gl_Position = vec4(attribs.position.x + position.x, attribs.position.y + position.y, 1.0, 1.0);\n"
+"gl_Position = attribs.pvmMatrix * vec4(position, 1.0);\n"
 "}\0";
 
 const char* frag_default = "#version 330 core\n"
@@ -54,6 +53,7 @@ std::stack<unsigned int> FreeInstanceAttributeIndices; //only one copy allowed, 
 InstanceAttributes GlobalInstanceAttributes[MAX_SPRITES];
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
+glm::mat4 projViewMat; //combined projection view matrix
 
 DrawableObject* skibidi;
 DrawableObject* toilet;
@@ -78,18 +78,21 @@ int main(int argv, char** args)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(planeIndices), planeIndices, GL_STATIC_DRAW); //populate
 	glGenBuffers(1, &IBO); //generate instance attribute buffer on GPU
 	glBindBuffer(GL_ARRAY_BUFFER, IBO);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (vec2 is two floats), stride (size of struct in bytes), start offset (bytes)
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)(2 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 9 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
 	glVertexAttribDivisor(1, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
 	glVertexAttribDivisor(2, 1); //..
 	glVertexAttribDivisor(3, 1); //..
 	glVertexAttribDivisor(4, 1); //..
+	glVertexAttribDivisor(5, 1); //..
 	glEnableVertexAttribArray(1); //"enable" the attribute
 	glEnableVertexAttribArray(2); //I think this just lets opengl read from it at draw time
 	glEnableVertexAttribArray(3); //not 100% sure
 	glEnableVertexAttribArray(4); //..
+	glEnableVertexAttribArray(5); //..
 
 	while (running)
 	{
@@ -143,7 +146,6 @@ int init()
 	SDL_GL_SwapWindow(window); //swap buffers
 	glClear(GL_COLOR_BUFFER_BIT); //clear back buffer
 	glDisable(GL_CULL_FACE); //disable face culling for now
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); //draw wireframe for now
 	//create default shader
 	GLuint defaultVert = 0;
 	GLuint defaultFrag = 0;
@@ -164,12 +166,19 @@ int init()
 		FreeInstanceAttributeIndices.push(MAX_SPRITES - i); //populate free indices stack
 	}
 
+	glm::mat4 viewMat = glm::mat4(1.0f); //identity matrix
+	viewMat = glm::translate(viewMat, -glm::vec3(0.0f, 0.0f, 1.0f)); //translate by inverse of camera position
+
+	float aspect = (float)width / (float)height; //calculate aspect ratio
+	glm::mat4 projMat = glm::ortho(-aspect, aspect, -1.0f, 1.0f); //calculate orthographic projection matrix
+	projViewMat = projMat * viewMat; //combine projection and view matrices into one matrix
+
 	//Box2d
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	b2WorldId pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	skibidi = new DrawableObject(glm::fvec2(0.5f, 0.5f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes);
-	toilet = new DrawableObject(glm::fvec2(-0.5f, -0.5f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes);
+	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
+	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
 
 
 	return 0;

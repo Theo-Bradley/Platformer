@@ -1,5 +1,6 @@
 #pragma once
 #include <GLM/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <stack>
 
 #define MAX_SPRITES 128
@@ -48,10 +49,8 @@ public:
 };
 struct InstanceAttributes
 {
-	glm::fvec2 position;
-	glm::fvec2 scale;
+	glm::mat4 pvmMatrix;
 	glm::fvec4 atlasRect;
-	glm::float32 rotation;
 };
 class DrawableObject : public Object
 {
@@ -63,19 +62,21 @@ private:
 
 public:
 
-	DrawableObject(glm::fvec2 _position, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes) : Object(_position)
+	DrawableObject(glm::fvec2 _position, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes, glm::mat4 _pvMatrix) : Object(_position)
 	{
-		init(_atlasRect, _instanceAttributes);
+		init(_atlasRect, _instanceAttributes, _pvMatrix);
 	}
 
-	DrawableObject(glm::fvec2 _position, glm::fvec2 _scale, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes) : Object(_position, _scale)
+	DrawableObject(glm::fvec2 _position, glm::fvec2 _scale, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes,
+	glm::mat4 _pvMatrix) : Object(_position, _scale)
 	{
-		init(_atlasRect, _instanceAttributes);
+		init(_atlasRect, _instanceAttributes, _pvMatrix);
 	}
 
-	DrawableObject(glm::fvec2 _position, glm::int32 _rotation, glm::fvec2 _scale, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes) : Object(_position, _rotation, _scale)
+	DrawableObject(glm::fvec2 _position, glm::float32 _rotation, glm::fvec2 _scale, glm::fvec4 _atlasRect,
+		InstanceAttributes* _instanceAttributes, glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
 	{
-		init(_atlasRect, _instanceAttributes);
+		init(_atlasRect, _instanceAttributes, _pvMatrix);
 	}
 
 	void EnterScreen()
@@ -89,6 +90,15 @@ public:
 	{
 		//push my index to free indices
 		//unset my index
+	}
+
+	glm::mat4 CalculateCombinedMatrix(glm::mat4 pvMat)
+	{
+		glm::mat4 model = glm::mat4(1.0f); //identity matrix
+		model  = glm::translate(model, glm::vec3(position.x, position.y, 0.0f)); //apply translation
+		model = glm::rotate(model, rotation, glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
+		model = glm::scale(model, glm::vec3(scale.x, scale.y, 1.0f)); //apply scale
+		return pvMat * model; //multiply with combined projection view matrix
 	}
 
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
@@ -112,12 +122,10 @@ public:
 		return &(GlobalInstanceAttributes[attributeIndex]);
 	}
 
-	void init(glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes)
+	void init(glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes, glm::mat4 _pvMatrix)
 	{
 		GlobalInstanceAttributes = _instanceAttributes; //copy pointer to global array of attributes
-		myInstanceAttributes.position = position; //assign attributes to local struct
-		myInstanceAttributes.rotation = rotation; //..
-		myInstanceAttributes.scale = scale; //..
+		myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix(_pvMatrix); //assign attributes to local struct
 		myInstanceAttributes.atlasRect = _atlasRect; //..
 		CheckVisible();
 		//TEST CODE
