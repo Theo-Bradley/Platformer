@@ -214,8 +214,15 @@ public:
 
 		glDeleteShader(vertexShader); //cleanup shaders as they are contained in the program
 		glDeleteShader(fragmentShader); //..
+
 		isLoaded = true; //loaded shader
 
 		return !(program == errShader); //return true if succeeded, false if the program is the errShader (failed)
+	}
+
+	~Shader()
+	{
+		if (isLoaded)
+			glDeleteProgram(program);
 	}
 };
