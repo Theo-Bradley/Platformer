@@ -1,7 +1,4 @@
 ﻿  main.cpp
-C:\Unreal Projects\Platformer\Platformer\include\types.h(72,203): warning C4244: 'argument': conversion from 'glm::int32' to 'glm::float32', possible loss of data
-  (compiling source file 'src/main.cpp')
-  
   Platformer.vcxproj -> C:\Unreal Projects\Platformer\Platformer\build\x64\Debug\Platformer.exe
   Copy DLLs
   0 File(s) copied

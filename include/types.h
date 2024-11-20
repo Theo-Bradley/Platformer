@@ -2,11 +2,16 @@
 #include <GLM/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <stack>
+#include <fstream>
+#include <iostream>
+#include <string>
 
 #define MAX_SPRITES 128
 
 static unsigned int PopFreeIndex();
 static void PushFreeIndex(unsigned int freeIndex);
+
+GLuint errShader = 0;
 
 class Object
 {
@@ -139,5 +144,78 @@ public:
 			EnterScreen();
 		else
 			LeaveScreen();
+	}
+};
+
+class Shader
+{
+public:
+	GLuint program;
+	bool isLoaded;
+
+	Shader()
+	{
+		program = 0;
+		isLoaded = false;
+	}
+
+	Shader(const char* _vertPath, const char* _fragPath)
+	{
+		LoadShaderFromFile(_vertPath, _fragPath);
+	}
+
+	bool LoadShaderFromFile(const char* vertPath, const char* fragPath)
+	{
+		//load source from file
+		std::ifstream file;
+		std::string currLine;
+		file.open(vertPath, std::ios::in); //load file to read as binary at the end
+		std::string vertSource; //create string to hold source
+		while (std::getline(file, currLine)) //load file
+		{
+			vertSource.append(currLine); //write in each line
+			vertSource.append("\n"); //append the newline that got eaten by getline
+		}
+		file.close(); //close file
+		file.open(fragPath, std::ios::in); //..
+		std::string fragSource; //..
+		while (std::getline(file, currLine)) //load file
+		{
+			fragSource.append(currLine); //..
+			fragSource.append("\n"); //..
+		}
+		file.close(); //..
+
+		const char* cstrVertSource = vertSource.c_str(); //store the c string for 
+		const char* cstrFragSource = fragSource.c_str();
+
+		GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); //init empty shader
+		GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER); //..
+		glShaderSource(vertexShader, 1, &cstrVertSource, NULL); //load shader source
+		glCompileShader(vertexShader); //compile shader source
+		glShaderSource(fragmentShader, 1, &cstrFragSource, NULL); //..
+		glCompileShader(fragmentShader); //..
+
+		/*GET SHADER ERRORS
+		int logsize;
+		char* log = new char[4096];
+		glGetShaderInfoLog(vertexShader, 4096, &logsize, log);*/
+		program = glCreateProgram(); //init empty program
+		glAttachShader(program, vertexShader); //attach shaders
+		glAttachShader(program, fragmentShader); //..
+		glLinkProgram(program); //link program
+
+		GLint linkStatus = GL_FALSE; //init
+		glGetProgramiv(program, GL_LINK_STATUS, &linkStatus); //get GL_LINK_STATUS
+		if (linkStatus == GL_FALSE) //if linking failed
+		{
+			program = errShader; //use the error shader
+		}
+
+		glDeleteShader(vertexShader); //cleanup shaders as they are contained in the program
+		glDeleteShader(fragmentShader); //..
+		isLoaded = true; //loaded shader
+
+		return !(program == errShader); //return true if succeeded, false if the program is the errShader (failed)
 	}
 };

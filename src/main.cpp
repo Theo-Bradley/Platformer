@@ -19,7 +19,7 @@ unsigned int planeIndices[6] = {
 const char* vert_default = "#version 330 core\n"
 "struct InstanceAttributes\n"
 "{\n"
-"mat4 pvmMatrix;"
+"mat4 pvmMatrix;\n"
 "vec4 atlasRect;\n"
 "};\n"
 "layout (location = 0) in vec3 position;\n"
@@ -34,7 +34,7 @@ const char* frag_default = "#version 330 core\n"
 "void main()\n"
 "{\n"
 "color = vec4(1.0f, 0.0f, 1.0f, 1.0f);\n"
-"}\n\0";
+"}\0";
 
 void quit(int code); //quit function prototype
 int init();
@@ -42,13 +42,11 @@ static void handleEvents();
 void handleKeys(SDL_KeyboardEvent* key);
 void loop();
 void draw();
-static unsigned int GetNewInstancedAttributeIndex();
 
 SDL_Window* window; //main window
 static SDL_Renderer* renderer; //main renderer
 SDL_GLContext glContext;
 bool running = true;
-GLuint errShader = 0;
 std::stack<unsigned int> FreeInstanceAttributeIndices; //only one copy allowed, main thread access only
 InstanceAttributes GlobalInstanceAttributes[MAX_SPRITES];
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
@@ -126,11 +124,11 @@ int init()
 	//Initialization:
 	//SDL:
 	//SDL with OpenGL:
+	SDL_Init(SDL_INIT_EVERYTHING); //initalize all SDL subsystems
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); //..
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4); //use OpenGL 4.5 core
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5); //..
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); //..
-	SDL_Init(SDL_INIT_EVERYTHING); //initalize all SDL subsystems
-	window = SDL_CreateWindow("Platformer", 0, 0, 1920, 1080, SDL_WINDOW_OPENGL); //create new SDL OGL window //SDL_WINDOWPOS_UNDEFINED //SDL_WINDOW_FULLSCREEN_DESKTOP |
+	window = SDL_CreateWindow("Platformer", 0, 0, 1920, 1080, SDL_WINDOW_OPENGL); //create new SDL OGL window //SDL_WINDOW_FULLSCREEN_DESKTOP |
 	if (!window) //if failed to create window
 		quit(-1); //quit with error code -1
 	glContext = SDL_GL_CreateContext(window); //Create GL context
@@ -180,6 +178,7 @@ int init()
 	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
 	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
 
+	Shader basicShader = Shader("C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.vert", "C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.frag");
 
 	return 0;
 }
@@ -221,11 +220,6 @@ void draw()
 {
 	//...
 	SDL_GL_SwapWindow(window); //swap buffers
-}
-
-static unsigned int GetNewInstancedAttributeIndex()
-{
-
 }
 
 static unsigned int PopFreeIndex()
