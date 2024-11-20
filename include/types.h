@@ -189,6 +189,8 @@ public:
 		const char* cstrVertSource = vertSource.c_str(); //store the c string for 
 		const char* cstrFragSource = fragSource.c_str();
 
+		
+		
 		GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); //init empty shader
 		GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER); //..
 		glShaderSource(vertexShader, 1, &cstrVertSource, NULL); //load shader source
@@ -196,7 +198,10 @@ public:
 		glShaderSource(fragmentShader, 1, &cstrFragSource, NULL); //..
 		glCompileShader(fragmentShader); //..
 
-		/*GET SHADER ERRORS
+		GLint compStatus = GL_FALSE; //init
+		glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &compStatus); //get GL_LINK_STATUS
+
+		/*Get shader errors
 		int logsize;
 		char* log = new char[4096];
 		glGetShaderInfoLog(vertexShader, 4096, &logsize, log);*/

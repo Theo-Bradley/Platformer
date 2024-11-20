@@ -5,11 +5,15 @@
 #include <box2d/box2d.h>
 #include "types.h"
 
-float plane[12] = {
+float plane[] = {
 	-0.5f, -0.5f, 0.0f,
+	0.0f, 0.0f,
 	0.5f, -0.5f, 0.0f,
+	1.0f, 0.0f,
 	0.5f, 0.5f, 0.0f,
-	-0.5f, 0.5f, 0.0f};
+	1.0f, 1.0f,
+	-0.5f, 0.5f, 0.0f,
+	0.0f, 1.0f};
 
 unsigned int planeIndices[6] = {
 	0, 1, 2,
@@ -23,7 +27,7 @@ const char* vert_default = "#version 330 core\n"
 "vec4 atlasRect;\n"
 "};\n"
 "layout (location = 0) in vec3 position;\n"
-"layout (location = 1) in InstanceAttributes attribs;\n"
+"layout (location = 2) in InstanceAttributes attribs;\n"
 "void main()\n"
 "{\n"
 "gl_Position = attribs.pvmMatrix * vec4(position, 1.0);\n"
@@ -55,6 +59,8 @@ glm::mat4 projViewMat; //combined projection view matrix
 
 DrawableObject* skibidi;
 DrawableObject* toilet;
+Shader* basicShader;
+SDL_Surface* upArrow;
 
 int main(int argv, char** args)
 {
@@ -70,27 +76,37 @@ int main(int argv, char** args)
 	glBindVertexArray(VAO); //bind Vertex Array Object
 	glBindBuffer(GL_ARRAY_BUFFER, VBO); //bind buffer
 	glBufferData(GL_ARRAY_BUFFER, sizeof(plane), plane, GL_STATIC_DRAW); //populate buffer
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); //set attribute read params
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0); //set attribute read params
 	glEnableVertexAttribArray(0); //enable attrib
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float))); //..
+	glEnableVertexAttribArray(1); //..
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VIO); //bind index buffer
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(planeIndices), planeIndices, GL_STATIC_DRAW); //populate
 	glGenBuffers(1, &IBO); //generate instance attribute buffer on GPU
 	glBindBuffer(GL_ARRAY_BUFFER, IBO);
-	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
-	glVertexAttribDivisor(1, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
-	glVertexAttribDivisor(2, 1); //..
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
+	glVertexAttribDivisor(2, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
 	glVertexAttribDivisor(3, 1); //..
 	glVertexAttribDivisor(4, 1); //..
 	glVertexAttribDivisor(5, 1); //..
-	glEnableVertexAttribArray(1); //"enable" the attribute
-	glEnableVertexAttribArray(2); //I think this just lets opengl read from it at draw time
-	glEnableVertexAttribArray(3); //not 100% sure
-	glEnableVertexAttribArray(4); //..
+	glVertexAttribDivisor(6, 1); //..
+	glEnableVertexAttribArray(2); //"enable" the attribute
+	glEnableVertexAttribArray(3); //I think this just lets opengl read from it at draw time
+	glEnableVertexAttribArray(4); //not 100% sure
 	glEnableVertexAttribArray(5); //..
+	glEnableVertexAttribArray(6); //..
+
+	GLuint arrowTex;
+	glGenTextures(1, &arrowTex);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, arrowTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, upArrow->w, upArrow->h, 0, GL_RGB, GL_UNSIGNED_BYTE, (upArrow->pixels));
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glUniform1i(glGetUniformLocation(basicShader->program, "texture"),0);
 
 	while (running)
 	{
@@ -105,8 +121,11 @@ int main(int argv, char** args)
 		glBindBuffer(GL_ARRAY_BUFFER, IBO);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(GPUInstanceAttributes), GPUInstanceAttributes, GL_DYNAMIC_DRAW); //populate instance attrib buffer with tightly packed array
 
-		glUseProgram(errShader); //use basic shader
-		glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenSprites); //draw indexed verts instance
+		if (basicShader->isLoaded)
+		{
+			glUseProgram(basicShader->program); //use basic shader
+			glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenSprites); //draw indexed verts instance
+		}
 		draw();
 	}
 
@@ -178,7 +197,10 @@ int init()
 	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
 	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
 
-	Shader basicShader = Shader("C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.vert", "C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.frag");
+	basicShader = new Shader("C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.vert", "C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.frag");
+
+	upArrow = SDL_LoadBMP("C:/Unreal Projects/Platformer/Platformer/assets/sprites/arrow.bmp");
+	int a = 0;
 
 	return 0;
 }
