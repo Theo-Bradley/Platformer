@@ -55,7 +55,7 @@ public:
 struct InstanceAttributes
 {
 	glm::mat4 pvmMatrix;
-	glm::fvec4 atlasRect;
+	glm::fvec4 atlasRect; //l,r,t,b
 };
 class DrawableObject : public Object
 {
@@ -122,7 +122,7 @@ public:
 		GlobalInstanceAttributes[attributeIndex] = *newAttributes;
 	}
 
-	InstanceAttributes* GetAttributes()
+	InstanceAttributes* GetGlobalAttributes()
 	{
 		return &(GlobalInstanceAttributes[attributeIndex]);
 	}
@@ -145,6 +145,11 @@ public:
 		else
 			LeaveScreen();
 	}
+
+	InstanceAttributes GetMyAttribs()
+	{
+		return myInstanceAttributes;
+	}
 };
 
 class Shader
@@ -162,6 +167,11 @@ public:
 	Shader(const char* _vertPath, const char* _fragPath)
 	{
 		LoadShaderFromFile(_vertPath, _fragPath);
+	}
+
+	Shader(std::string _vertPath, std::string _fragPath)
+	{
+		LoadShaderFromFile(_vertPath.c_str(), _fragPath.c_str());
 	}
 
 	bool LoadShaderFromFile(const char* vertPath, const char* fragPath)
@@ -189,8 +199,6 @@ public:
 		const char* cstrVertSource = vertSource.c_str(); //store the c string for 
 		const char* cstrFragSource = fragSource.c_str();
 
-		
-		
 		GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); //init empty shader
 		GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER); //..
 		glShaderSource(vertexShader, 1, &cstrVertSource, NULL); //load shader source
@@ -204,7 +212,7 @@ public:
 		/*Get shader errors
 		int logsize;
 		char* log = new char[4096];
-		glGetShaderInfoLog(vertexShader, 4096, &logsize, log);*/
+		glGetShaderInfoLog(fragmentShader, 4096, &logsize, log); //*/
 		program = glCreateProgram(); //init empty program
 		glAttachShader(program, vertexShader); //attach shaders
 		glAttachShader(program, fragmentShader); //..

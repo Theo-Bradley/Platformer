@@ -10,7 +10,7 @@ out vec4 _atlasRect;
 
 void main()
 {
-gl_Position = attribs.pvmMatrix * vec4(position, 1.0);
+gl_Position = pvmMatrix * vec4(position, 1.0);
 _uv = uv;
-_atlasRect = attribs.atlasRect;
+_atlasRect = atlasRect;
 }

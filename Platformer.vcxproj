@@ -148,10 +148,11 @@
       <AdditionalLibraryDirectories>$(SolutionDir)lib\x64</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(SolutionDir)lib\x64\*.dll" "$(OutDir)"</Command>
+      <Command>xcopy /d /y "$(SolutionDir)lib\x64\*.dll" "$(OutDir)"
+xcopy /d /y /s /e "$(SolutionDir)assets\*" "$(OutDir)\assets\"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Copy DLLs</Message>
+      <Message>Copy DLLs and Assets</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -175,10 +176,11 @@
       <AdditionalLibraryDirectories>$(SolutionDir)lib\x64</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(SolutionDir)lib\x64\*.dll" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(SolutionDir)lib\x64\*.dll" "$(OutDir)"
+xcopy /y /s /e "$(SolutionDir)assets\*" "$(OutDir)\assets\"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Copy DLLs</Message>
+      <Message>Copy DLLs and Assets</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

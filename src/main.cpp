@@ -46,6 +46,8 @@ static void handleEvents();
 void handleKeys(SDL_KeyboardEvent* key);
 void loop();
 void draw();
+//std::string Path(std::string assetPath);
+#define Path(assetPath)  std::string(SDL_GetBasePath() + std::string(##assetPath##))
 
 SDL_Window* window; //main window
 static SDL_Renderer* renderer; //main renderer
@@ -101,12 +103,15 @@ int main(int argv, char** args)
 	glEnableVertexAttribArray(6); //..
 
 	GLuint arrowTex;
+	glUseProgram(basicShader->program);
 	glGenTextures(1, &arrowTex);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, arrowTex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, upArrow->w, upArrow->h, 0, GL_RGB, GL_UNSIGNED_BYTE, (upArrow->pixels));
 	glGenerateMipmap(GL_TEXTURE_2D);
-	glUniform1i(glGetUniformLocation(basicShader->program, "texture"),0);
+	glUniform1i(glGetUniformLocation(basicShader->program, "tex"),0);
+	const glm::vec2 atlasSize = glm::vec2(256.f, 128.f);
+	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlasSize.x, atlasSize.y);
 
 	while (running)
 	{
@@ -194,13 +199,13 @@ int init()
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	b2WorldId pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
-	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(33.0f, 66.0f, 99.0f, 66.0f), GlobalInstanceAttributes, projViewMat);
+	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(0.0f, 128.0f, 0.0f, 128.0f), GlobalInstanceAttributes, projViewMat);
+	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(128.0f, 256.0f, 0.0f, 128.0f), GlobalInstanceAttributes, projViewMat);
 
-	basicShader = new Shader("C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.vert", "C:/Unreal Projects/Platformer/Platformer/assets/shaders/basic.frag");
+	basicShader = new Shader(Path("assets/shaders/basic.vert"), Path("assets/shaders/basic.frag"));
 
-	upArrow = SDL_LoadBMP("C:/Unreal Projects/Platformer/Platformer/assets/sprites/arrow.bmp");
-	int a = 0;
+	std::string yammaYamma = Path("assets/sprites/arrow.bmp");
+	upArrow = SDL_LoadBMP(yammaYamma.c_str());
 
 	return 0;
 }
@@ -255,3 +260,9 @@ static void PushFreeIndex(unsigned int freeIndex)
 {
 	FreeInstanceAttributeIndices.push(freeIndex);
 }
+
+/*std::string Path(std::string assetPath)
+{
+	std::string path(SDL_GetBasePath() + assetPath);
+	return path;
+}*/
