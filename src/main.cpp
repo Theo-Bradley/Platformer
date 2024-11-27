@@ -4,6 +4,8 @@
 #include <SDL/SDL_opengl.h>
 #include <box2d/box2d.h>
 #include "types.h"
+#include <vector>
+#include <algorithm>
 
 const char* vert_default = "#version 330 core\n"
 "struct InstanceAttributes\n"
@@ -41,6 +43,12 @@ bool running = true;
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
 glm::mat4 projViewMat; //combined projection view matrix
+GLuint quadVBO = 0; //quad vertex attribute buffer object
+GLuint quadVIO = 0; //quad vertex indices buffer object
+GLuint quadVAO = 0; //quad vertex array object
+GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
+GLuint arrowTex; //texture
+std::vector<DrawableObject*> sprites;
 
 DrawableObject* skibidi;
 DrawableObject* toilet;
@@ -51,50 +59,6 @@ int main(int argv, char** args)
 {
 	init();
 	//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Working", "It's Working!", NULL); //post a basic messagebox
-	GLuint VBO = 0;
-	GLuint VIO = 0;
-	GLuint VAO = 0;
-	GLuint IBO = 0;
-	glGenBuffers(1, &VBO); //generate empty buffer
-	glGenBuffers(1, &VIO); //..
-	glGenVertexArrays(1, &VAO); //.. vertex array object
-	glBindVertexArray(VAO); //bind Vertex Array Object
-	glBindBuffer(GL_ARRAY_BUFFER, VBO); //bind buffer
-	glBufferData(GL_ARRAY_BUFFER, sizeof(plane), plane, GL_STATIC_DRAW); //populate buffer
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0); //set attribute read params
-	glEnableVertexAttribArray(0); //enable attrib
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float))); //..
-	glEnableVertexAttribArray(1); //..
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VIO); //bind index buffer
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(planeIndices), planeIndices, GL_STATIC_DRAW); //populate
-	glGenBuffers(1, &IBO); //generate instance attribute buffer on GPU
-	glBindBuffer(GL_ARRAY_BUFFER, IBO);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
-	glVertexAttribDivisor(2, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
-	glVertexAttribDivisor(3, 1); //..
-	glVertexAttribDivisor(4, 1); //..
-	glVertexAttribDivisor(5, 1); //..
-	glVertexAttribDivisor(6, 1); //..
-	glEnableVertexAttribArray(2); //"enable" the attribute
-	glEnableVertexAttribArray(3); //I think this just lets opengl read from it at draw time
-	glEnableVertexAttribArray(4); //not 100% sure
-	glEnableVertexAttribArray(5); //..
-	glEnableVertexAttribArray(6); //..
-
-	GLuint arrowTex;
-	glUseProgram(basicShader->program);
-	glGenTextures(1, &arrowTex);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, arrowTex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, upArrow->w, upArrow->h, 0, GL_RGB, GL_UNSIGNED_BYTE, (upArrow->pixels));
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glUniform1i(glGetUniformLocation(basicShader->program, "tex"),0);
-	const glm::vec2 atlasSize = glm::vec2(256.f, 128.f);
-	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlasSize.x, atlasSize.y);
 
 	while (running)
 	{
@@ -102,22 +66,7 @@ int main(int argv, char** args)
 
 		skibidi->Move(glm::vec2(0.0003f, 0));
 		//toilet->Move(glm::vec2(glm::sin(SDL_GetTicks()), 0));
-		//temp render code
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glBindVertexArray(VAO); //bind plane VAO
 		
-		onscreenSprites = 0;
-		skibidi->DrawInstanced(GPUInstanceAttributes, &onscreenSprites); //populate tightly packed array
-		toilet->DrawInstanced(GPUInstanceAttributes, &onscreenSprites); //replace with some loop over all instanced sprites in this level
-		
-		glBindBuffer(GL_ARRAY_BUFFER, IBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GPUInstanceAttributes), GPUInstanceAttributes, GL_DYNAMIC_DRAW); //populate instance attrib buffer with tightly packed array
-
-		if (basicShader->isLoaded)
-		{
-			glUseProgram(basicShader->program); //use basic shader
-			glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenSprites); //draw indexed verts instance
-		}
 		draw();
 	}
 
@@ -170,6 +119,51 @@ int init()
 	glAttachShader(errShader, defaultFrag); //.. frag ..
 	glLinkProgram(errShader); //link shaders into one program
 
+	basicShader = new Shader(Path("assets/shaders/basic.vert"), Path("assets/shaders/basic.frag"));
+
+	std::string imagePath = Path("assets/sprites/arrow.bmp");
+	upArrow = SDL_LoadBMP(imagePath.c_str());
+
+	glGenBuffers(1, &quadVBO); //generate empty buffer
+	glGenBuffers(1, &quadVIO); //..
+	glGenVertexArrays(1, &quadVAO); //.. vertex array object
+	glBindVertexArray(quadVAO); //bind Vertex Array Object
+	glBindBuffer(GL_ARRAY_BUFFER, quadVBO); //bind buffer
+	glBufferData(GL_ARRAY_BUFFER, sizeof(plane), plane, GL_STATIC_DRAW); //populate buffer
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0); //set attribute read params
+	glEnableVertexAttribArray(0); //enable attrib
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float))); //..
+	glEnableVertexAttribArray(1); //..
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadVIO); //bind index buffer
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(planeIndices), planeIndices, GL_STATIC_DRAW); //populate
+	glGenBuffers(1, &instanceAttributeBuffer); //generate instance attribute buffer on GPU
+	glBindBuffer(GL_ARRAY_BUFFER, instanceAttributeBuffer);
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
+	glVertexAttribDivisor(2, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
+	glVertexAttribDivisor(3, 1); //..
+	glVertexAttribDivisor(4, 1); //..
+	glVertexAttribDivisor(5, 1); //..
+	glVertexAttribDivisor(6, 1); //..
+	glEnableVertexAttribArray(2); //"enable" the attribute
+	glEnableVertexAttribArray(3); //I think this just lets opengl read from it at draw time
+	glEnableVertexAttribArray(4); //not 100% sure
+	glEnableVertexAttribArray(5); //..
+	glEnableVertexAttribArray(6); //..
+
+	glUseProgram(basicShader->program);
+	glGenTextures(1, &arrowTex);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, arrowTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, upArrow->w, upArrow->h, 0, GL_RGB, GL_UNSIGNED_BYTE, (upArrow->pixels));
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glUniform1i(glGetUniformLocation(basicShader->program, "tex"), 0);
+	const glm::vec2 atlasSize = glm::vec2(256.f, 128.f);
+	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlasSize.x, atlasSize.y);
+
 	glm::mat4 viewMat = glm::mat4(1.0f); //identity matrix
 	viewMat = glm::translate(viewMat, -glm::vec3(0.0f, 0.0f, 1.0f)); //translate by inverse of camera position
 
@@ -186,10 +180,8 @@ int init()
 	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
 	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(128.0f, 256.0f, 0.0f, 128.0f), projViewMat);
 
-	basicShader = new Shader(Path("assets/shaders/basic.vert"), Path("assets/shaders/basic.frag"));
-
-	std::string yammaYamma = Path("assets/sprites/arrow.bmp");
-	upArrow = SDL_LoadBMP(yammaYamma.c_str());
+	sprites.push_back(skibidi);
+	sprites.push_back(toilet);
 
 	return 0;
 }
@@ -229,12 +221,18 @@ void loop()
 
 void draw()
 {
-	//...
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindVertexArray(quadVAO); //bind plane VAO
+
+	onscreenSprites = 0;
+	std::for_each(sprites.begin(), sprites.end(), [&](DrawableObject* sprite) {sprite->DrawInstanced(GPUInstanceAttributes, &onscreenSprites); });
+	glBindBuffer(GL_ARRAY_BUFFER, instanceAttributeBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GPUInstanceAttributes), GPUInstanceAttributes, GL_DYNAMIC_DRAW); //populate instance attrib buffer with tightly packed array
+
+	if (basicShader->isLoaded)
+	{
+		glUseProgram(basicShader->program); //use basic shader
+		glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenSprites); //draw indexed verts instance
+	}
 	SDL_GL_SwapWindow(window); //swap buffers
 }
-
-/*std::string Path(std::string assetPath)
-{
-	std::string path(SDL_GetBasePath() + assetPath);
-	return path;
-}*/

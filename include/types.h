@@ -169,6 +169,8 @@ public:
 
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
 	{
+		if (*instanceCount + 1 < MAX_SPRITES) //if MAX_SPRITES are already ready to be drawn
+			return false; //exit early
 		if (isVisible) //if we should be drawn right now
 		{
 			if (outdatedAttribs)
