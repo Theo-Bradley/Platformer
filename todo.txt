@@ -1,0 +1,2 @@
+investigate removing global instance attributes array, what is it even used for right now?
+GPUInstanceAttributes just gets its data from objects that are "visible"

@@ -8,8 +8,28 @@
 
 #define MAX_SPRITES 128
 
+float plane[] = {
+	-0.5f, -0.5f, 0.0f,
+	0.0f, 0.0f,
+	0.5f, -0.5f, 0.0f,
+	1.0f, 0.0f,
+	0.5f, 0.5f, 0.0f,
+	1.0f, 1.0f,
+	-0.5f, 0.5f, 0.0f,
+	0.0f, 1.0f };
+
+unsigned int planeIndices[6] = {
+	0, 1, 2,
+	2, 3, 0
+};
+
+
+class DrawableObject;
 static unsigned int PopFreeIndex();
 static void PushFreeIndex(unsigned int freeIndex);
+glm::vec4 CalculateScreenRect(glm::mat4 projViewMat);
+bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
+bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
 
 GLuint errShader = 0;
 
@@ -64,6 +84,7 @@ private:
 	InstanceAttributes* GlobalInstanceAttributes; //ref to global loosely packed instance attribs array
 	unsigned int attributeIndex; //index in the global instanceAttributes array
 	bool isVisible; //should this sprite be drawn right now
+	glm::mat4 pvMatrix; //proj view matrix
 
 public:
 
@@ -89,12 +110,14 @@ public:
 		attributeIndex = PopFreeIndex(); //get a free index
 		//add code to above line to catch case where there are no free indices
 		SetAttributes(&myInstanceAttributes); //set local copy of attributes to appropriate spot in global attribs
+		isVisible = true;
 	}
 
 	void LeaveScreen()
 	{
 		//push my index to free indices
 		//unset my index
+		isVisible = false;
 	}
 
 	glm::mat4 CalculateCombinedMatrix(glm::mat4 pvMat)
@@ -104,6 +127,15 @@ public:
 		model = glm::rotate(model, rotation, glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
 		model = glm::scale(model, glm::vec3(scale.x, scale.y, 1.0f)); //apply scale
 		return pvMat * model; //multiply with combined projection view matrix
+	}
+
+	glm::mat4 CalculateCombinedMatrix()
+	{
+		glm::mat4 model = glm::mat4(1.0f); //identity matrix
+		model = glm::translate(model, glm::vec3(position.x, position.y, 0.0f)); //apply translation
+		model = glm::rotate(model, rotation, glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
+		model = glm::scale(model, glm::vec3(scale.x, scale.y, 1.0f)); //apply scale
+		return pvMatrix * model; //multiply with stored combined projection view matrix
 	}
 
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
@@ -119,6 +151,7 @@ public:
 
 	void SetAttributes(InstanceAttributes* newAttributes)
 	{
+		myInstanceAttributes = *newAttributes;
 		GlobalInstanceAttributes[attributeIndex] = *newAttributes;
 	}
 
@@ -132,18 +165,37 @@ public:
 		GlobalInstanceAttributes = _instanceAttributes; //copy pointer to global array of attributes
 		myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix(_pvMatrix); //assign attributes to local struct
 		myInstanceAttributes.atlasRect = _atlasRect; //..
+		pvMatrix = _pvMatrix;
 		CheckVisible();
 		//TEST CODE
 		isVisible = true; //we always want to draw for testing purposes
 	}
 
-	void CheckVisible()
+	bool CheckVisible()
 	{
 		//add check of isVisible to avoid extra calling of Enter/LeaveScreen
 		if (true) //replace true with proper onscreen detection
-			EnterScreen();
-		else
-			LeaveScreen();
+		{
+			if (!isVisible)
+				EnterScreen();
+			return true;
+		}
+		if (true) //replace true with offscreen check
+		{
+			if (isVisible)
+				LeaveScreen();
+			return false;
+		}
+	}
+
+	void Move(glm::vec2 _amt)
+	{
+		position += _amt;
+		if (CheckVisible())
+		{
+			myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix();
+			SetAttributes(&myInstanceAttributes);
+		}
 	}
 
 	InstanceAttributes GetMyAttribs()
@@ -239,3 +291,39 @@ public:
 			glDeleteProgram(program);
 	}
 };
+
+glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
+{
+	glm::vec3 tl = glm::vec4(-1, -1, 0, 1) * glm::inverse(projViewMat);
+	glm::vec3 br = glm::vec4(1, 1, 0, 1) * glm::inverse(projViewMat);
+	return glm::vec4(tl.x, br.x, br.y, tl.y);
+}
+
+bool RectContainsPoint(glm::vec4 rect, glm::vec3 point)
+{
+	if (point.x >= rect.x && point.x <= rect.y && point.y <= rect.z && point.y >= rect.w)
+		return true;
+	return false;
+}
+
+bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj)
+{
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(obj->position.x, obj->position.y, 0.0f)); //apply translation
+	modelMatrix = glm::rotate(modelMatrix, obj->rotation, glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(obj->scale.x, obj->scale.y, 1.0f)); //apply scale
+	glm::vec3 tl = modelMatrix * glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f);
+	glm::vec3 tr = modelMatrix * glm::vec4(0.5f, 0.5f, 0.0f, 1.0f);
+	glm::vec3 bl = modelMatrix * glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f);
+	glm::vec3 br = modelMatrix * glm::vec4(0.5f, -0.5f, 0.0f, 1.0f);
+
+	if (RectContainsPoint(rect, tl))
+		return true;
+	if (RectContainsPoint(rect, tr))
+		return true;
+	if (RectContainsPoint(rect, bl))
+		return true;
+	if (RectContainsPoint(rect, br))
+		return true;
+	return false;
+}

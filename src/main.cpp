@@ -5,21 +5,6 @@
 #include <box2d/box2d.h>
 #include "types.h"
 
-float plane[] = {
-	-0.5f, -0.5f, 0.0f,
-	0.0f, 0.0f,
-	0.5f, -0.5f, 0.0f,
-	1.0f, 0.0f,
-	0.5f, 0.5f, 0.0f,
-	1.0f, 1.0f,
-	-0.5f, 0.5f, 0.0f,
-	0.0f, 1.0f};
-
-unsigned int planeIndices[6] = {
-	0, 1, 2,
-	2, 3, 0
-};
-
 const char* vert_default = "#version 330 core\n"
 "struct InstanceAttributes\n"
 "{\n"
@@ -58,6 +43,7 @@ InstanceAttributes GlobalInstanceAttributes[MAX_SPRITES];
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
 glm::mat4 projViewMat; //combined projection view matrix
+glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
 
 DrawableObject* skibidi;
 DrawableObject* toilet;
@@ -116,7 +102,11 @@ int main(int argv, char** args)
 	while (running)
 	{
 		loop();
+
+		skibidi->Move(glm::vec2(0.0003f, 0));
+		//toilet->Move(glm::vec2(glm::sin(SDL_GetTicks()), 0));
 		//temp render code
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glBindVertexArray(VAO); //bind plane VAO
 		
 		onscreenSprites = 0;
@@ -206,6 +196,8 @@ int init()
 
 	std::string yammaYamma = Path("assets/sprites/arrow.bmp");
 	upArrow = SDL_LoadBMP(yammaYamma.c_str());
+
+	screenRect = CalculateScreenRect(projViewMat);
 
 	return 0;
 }
