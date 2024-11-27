@@ -33,7 +33,6 @@ static void handleEvents();
 void handleKeys(SDL_KeyboardEvent* key);
 void loop();
 void draw();
-//std::string Path(std::string assetPath);
 #define Path(assetPath)  std::string(SDL_GetBasePath() + std::string(##assetPath##))
 
 SDL_Window* window; //main window
@@ -49,9 +48,10 @@ GLuint quadVAO = 0; //quad vertex array object
 GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
 GLuint arrowTex; //texture
 std::vector<DrawableObject*> sprites;
+unsigned long long int elapsedTime;
 
 DrawableObject* skibidi;
-DrawableObject* toilet;
+PhysicsObject* toilet;
 Shader* basicShader;
 SDL_Surface* upArrow;
 
@@ -65,7 +65,7 @@ int main(int argv, char** args)
 		loop();
 
 		skibidi->Move(glm::vec2(0.0003f, 0));
-		//toilet->Move(glm::vec2(glm::sin(SDL_GetTicks()), 0));
+		toilet->UpdateBody();
 		
 		draw();
 	}
@@ -76,6 +76,7 @@ int main(int argv, char** args)
 void quit(int code)
 {
 	SDL_Quit(); //quit SDL
+	b2DestroyWorld(pWorld); //destroy the physics world
 	exit(code); //exit the application with the error code
 }
 
@@ -85,6 +86,7 @@ int init()
 	//SDL:
 	//SDL with OpenGL:
 	SDL_Init(SDL_INIT_EVERYTHING); //initalize all SDL subsystems
+	elapsedTime = SDL_GetTicks64(); //get inital elapsed time
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); //..
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4); //use OpenGL 4.5 core
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5); //..
@@ -175,10 +177,10 @@ int init()
 
 	//Box2d
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
-	b2WorldId pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
+	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
-	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(128.0f, 256.0f, 0.0f, 128.0f), projViewMat);
+	skibidi = new DrawableObject(glm::vec2(1.0f, 0.0f), glm::radians(45.0f), glm::vec2(0.25f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
+	toilet = new PhysicsObject(glm::vec2(-1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(128.0f, 256.0f, 0.0f, 128.0f), projViewMat);
 
 	sprites.push_back(skibidi);
 	sprites.push_back(toilet);
@@ -216,7 +218,10 @@ static void handleKeys(SDL_KeyboardEvent* key)
 
 void loop()
 {
+	unsigned long long int oldElapsedTime = elapsedTime;
+	elapsedTime = SDL_GetTicks64(); //get elapsed time in ms
 	handleEvents();
+	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4);
 }
 
 void draw()

@@ -31,6 +31,7 @@ bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
 
 GLuint errShader = 0;
 glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
+b2WorldId pWorld;
 
 class Object
 {
@@ -132,18 +133,18 @@ private:
 
 public:
 
-	DrawableObject(glm::fvec2 _position, glm::fvec4 _atlasRect, glm::mat4 _pvMatrix) : Object(_position)
+	DrawableObject(glm::vec2 _position, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) : Object(_position)
 	{
 		init(_atlasRect, _pvMatrix);
 	}
 
-	DrawableObject(glm::fvec2 _position, glm::fvec2 _scale, glm::fvec4 _atlasRect,
-	glm::mat4 _pvMatrix) : Object(_position, _scale)
+	DrawableObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect,
+		glm::mat4 _pvMatrix) : Object(_position, _scale)
 	{
 		init(_atlasRect, _pvMatrix);
 	}
 
-	DrawableObject(glm::fvec2 _position, glm::float32 _rotation, glm::fvec2 _scale, glm::fvec4 _atlasRect,
+	DrawableObject(glm::vec2 _position, glm::float32 _rotation, glm::vec2 _scale, glm::vec4 _atlasRect,
 		glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
 	{
 		init(_atlasRect, _pvMatrix);
@@ -248,6 +249,34 @@ public:
 	InstanceAttributes GetMyAttribs()
 	{
 		return myInstanceAttributes;
+	}
+};
+
+class PhysicsObject : public DrawableObject
+{
+public:
+	b2BodyId pBody;
+	b2ShapeId pShape;
+	
+	PhysicsObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix)
+		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
+	{
+		b2BodyDef bodyDef = b2DefaultBodyDef();
+		bodyDef.position = b2Vec2{(float)position.x, (float)position.y};
+		bodyDef.type = b2_dynamicBody;
+		pBody = b2CreateBody(pWorld, &bodyDef);
+		b2ShapeDef shapeDef = b2DefaultShapeDef();
+		shapeDef.friction = 0.5f;
+		b2Polygon bPoly = b2MakeBox(scale.x/2.f, scale.y/2.f);
+		pShape = b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
+	}
+
+	void UpdateBody()
+	{
+		b2Vec2 newPosition = b2Body_GetPosition(pBody);
+		b2Rot newRotation = b2Body_GetRotation(pBody);
+		SetPosition(glm::vec2(newPosition.x, newPosition.y));
+		SetRotation(glm::float32(b2Rot_GetAngle(newRotation)));
 	}
 };
 
