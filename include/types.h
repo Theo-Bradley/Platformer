@@ -30,33 +30,35 @@ bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
 
 GLuint errShader = 0;
+glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
 
 class Object
 {
-public:
-	glm::fvec2 position;
+protected:
+	glm::vec2 position;
 	glm::float32 rotation;
-	glm::fvec2 scale;
+	glm::vec2 scale;
 
-	Object(glm::fvec2 _position, glm::float32 _rotation, glm::fvec2 _scale)
+public:
+	Object(glm::vec2 _position, glm::float32 _rotation, glm::vec2 _scale)
 	{
 		position = _position;
 		rotation = _rotation;
 		scale = _scale;
 	}
-	Object(glm::fvec2 _position, glm::float32 _rotation)
+	Object(glm::vec2 _position, glm::float32 _rotation)
 	{
 		position = _position;
 		rotation = _rotation;
-		scale = glm::fvec2(1.0f, 1.0f);
+		scale = glm::vec2(1.0f, 1.0f);
 	}
-	Object(glm::fvec2 _position)
+	Object(glm::vec2 _position)
 	{
 		position = _position;
 		rotation = 0;
-		scale = glm::fvec2(1.0f, 1.0f);
+		scale = glm::vec2(1.0f, 1.0f);
 	}
-	Object(glm::fvec2 _position, glm::fvec2 _scale)
+	Object(glm::vec2 _position, glm::vec2 _scale)
 	{
 		position = _position;
 		rotation = 0;
@@ -65,9 +67,54 @@ public:
 
 	Object()
 	{
-		position = glm::fvec2(0.0f, 0.0f);
+		position = glm::vec2(0.0f, 0.0f);
 		rotation = 0;
-		scale = glm::fvec2(1.0f, 1.0f);
+		scale = glm::vec2(1.0f, 1.0f);
+	}
+
+	virtual void Move(glm::vec2 _amt)
+	{
+		position += _amt;
+	}
+
+	virtual void Scale(glm::vec2 _amt)
+	{
+		scale *= _amt;
+	}
+
+	virtual void Rotate(glm::float32 _amt)
+	{
+		rotation = glm::mod(rotation + _amt, 2 * glm::pi<float>());
+	}
+
+	virtual void SetPosition(glm::vec2 _pos)
+	{
+		position = _pos;
+	}
+
+	virtual void SetScale(glm::vec2 _scale)
+	{
+		scale = _scale;
+	}
+
+	virtual void SetRotation(glm::float32 _rot)
+	{
+		rotation = _rot;
+	}
+
+	virtual glm::vec2 GetPosition()
+	{
+		return position;
+	}
+
+	virtual glm::vec2 GetScale()
+	{
+		return scale;
+	}
+
+	virtual glm::float32 GetRotation()
+	{
+		return rotation;
 	}
 };
 struct InstanceAttributes
@@ -79,8 +126,9 @@ class DrawableObject : public Object
 {
 private:
 	InstanceAttributes myInstanceAttributes; //instance attributes for this instance
-	bool isVisible; //should this sprite be drawn right now
+	bool isVisible = false; //should this sprite be drawn right now
 	glm::mat4 pvMatrix; //proj view matrix
+	bool outdatedAttribs = true; //do we need to recalc attribs when drawing
 
 public:
 
@@ -99,16 +147,6 @@ public:
 		glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
 	{
 		init(_atlasRect, _pvMatrix);
-	}
-
-	void EnterScreen()
-	{
-		isVisible = true;
-	}
-
-	void LeaveScreen()
-	{
-		isVisible = false;
 	}
 
 	glm::mat4 CalculateCombinedMatrix(glm::mat4 pvMat)
@@ -133,11 +171,16 @@ public:
 	{
 		if (isVisible) //if we should be drawn right now
 		{
+			if (outdatedAttribs)
+			{
+				myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix();
+				outdatedAttribs = false;
+			}
 			GPUInstancedAttributes[*instanceCount] = myInstanceAttributes; //fill next free space in array with my attribs
 			(*instanceCount)++; //increment the drawn instance count
 			return true; //return true (we will be drawn)
 		}
-		else return false; //else return false (we won't be drawn)
+		return false; //else return false (we won't be drawn)
 	}
 
 	void init(glm::fvec4 _atlasRect, glm::mat4 _pvMatrix)
@@ -146,23 +189,20 @@ public:
 		myInstanceAttributes.atlasRect = _atlasRect; //..
 		pvMatrix = _pvMatrix;
 		CheckVisible();
-		//TEST CODE
-		isVisible = true; //we always want to draw for testing purposes
 	}
 
 	bool CheckVisible()
 	{
-		//add check of isVisible to avoid extra calling of Enter/LeaveScreen
-		if (true) //replace true with proper onscreen detection
+		if (RectContainsSprite(screenRect, this)) //if onscreen
 		{
 			if (!isVisible)
-				EnterScreen();
+				isVisible = true;
 			return true;
 		}
-		if (true) //replace true with offscreen check
+		else //offscreen
 		{
 			if (isVisible)
-				LeaveScreen();
+				isVisible = false;
 			return false;
 		}
 	}
@@ -170,10 +210,37 @@ public:
 	void Move(glm::vec2 _amt)
 	{
 		position += _amt;
-		if (CheckVisible())
-		{
-			myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix();
-		}
+		outdatedAttribs = true;
+	}
+
+	void Scale(glm::vec2 _amt)
+	{
+		scale *= _amt;
+		outdatedAttribs = true;
+	}
+
+	void Rotate(glm::float32 _amt)
+	{
+		rotation = glm::mod(rotation + _amt, 2 * glm::pi<float>());
+		outdatedAttribs = true;
+	}
+
+	void SetPosition(glm::vec2 _pos)
+	{
+		position = _pos;
+		outdatedAttribs = true;
+	}
+
+	void SetScale(glm::vec2 _scale)
+	{
+		scale = _scale;
+		outdatedAttribs = true;
+	}
+
+	void SetRotation(glm::float32 _rot)
+	{
+		rotation = _rot;
+		outdatedAttribs = true;
 	}
 
 	InstanceAttributes GetMyAttribs()
@@ -287,9 +354,9 @@ bool RectContainsPoint(glm::vec4 rect, glm::vec3 point)
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj)
 {
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(obj->position.x, obj->position.y, 0.0f)); //apply translation
-	modelMatrix = glm::rotate(modelMatrix, obj->rotation, glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
-	modelMatrix = glm::scale(modelMatrix, glm::vec3(obj->scale.x, obj->scale.y, 1.0f)); //apply scale
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(obj->GetPosition().x, obj->GetPosition().y, 0.0f)); //apply translation
+	modelMatrix = glm::rotate(modelMatrix, obj->GetRotation(), glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(obj->GetScale().x, obj->GetScale().y, 1.0f)); //apply scale
 	glm::vec3 tl = modelMatrix * glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f);
 	glm::vec3 tr = modelMatrix * glm::vec4(0.5f, 0.5f, 0.0f, 1.0f);
 	glm::vec3 bl = modelMatrix * glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f);

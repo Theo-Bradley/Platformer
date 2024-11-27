@@ -41,7 +41,6 @@ bool running = true;
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
 glm::mat4 projViewMat; //combined projection view matrix
-glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
 
 DrawableObject* skibidi;
 DrawableObject* toilet;
@@ -178,6 +177,8 @@ int init()
 	glm::mat4 projMat = glm::ortho(-aspect, aspect, -1.0f, 1.0f); //calculate orthographic projection matrix
 	projViewMat = projMat * viewMat; //combine projection and view matrices into one matrix
 
+	screenRect = CalculateScreenRect(projViewMat);
+
 	//Box2d
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	b2WorldId pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
@@ -189,8 +190,6 @@ int init()
 
 	std::string yammaYamma = Path("assets/sprites/arrow.bmp");
 	upArrow = SDL_LoadBMP(yammaYamma.c_str());
-
-	screenRect = CalculateScreenRect(projViewMat);
 
 	return 0;
 }
