@@ -169,7 +169,7 @@ public:
 
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
 	{
-		if (*instanceCount + 1 < MAX_SPRITES) //if MAX_SPRITES are already ready to be drawn
+		if (*instanceCount + 1 > MAX_SPRITES) //if MAX_SPRITES are already ready to be drawn
 			return false; //exit early
 		if (isVisible) //if we should be drawn right now
 		{
@@ -355,6 +355,7 @@ bool RectContainsPoint(glm::vec4 rect, glm::vec3 point)
 
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj)
 {
+	return true;
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(obj->GetPosition().x, obj->GetPosition().y, 0.0f)); //apply translation
 	modelMatrix = glm::rotate(modelMatrix, obj->GetRotation(), glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
