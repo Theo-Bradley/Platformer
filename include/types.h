@@ -25,8 +25,6 @@ unsigned int planeIndices[6] = {
 
 
 class DrawableObject;
-static unsigned int PopFreeIndex();
-static void PushFreeIndex(unsigned int freeIndex);
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat);
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
@@ -81,42 +79,35 @@ class DrawableObject : public Object
 {
 private:
 	InstanceAttributes myInstanceAttributes; //instance attributes for this instance
-	InstanceAttributes* GlobalInstanceAttributes; //ref to global loosely packed instance attribs array
-	unsigned int attributeIndex; //index in the global instanceAttributes array
 	bool isVisible; //should this sprite be drawn right now
 	glm::mat4 pvMatrix; //proj view matrix
 
 public:
 
-	DrawableObject(glm::fvec2 _position, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes, glm::mat4 _pvMatrix) : Object(_position)
+	DrawableObject(glm::fvec2 _position, glm::fvec4 _atlasRect, glm::mat4 _pvMatrix) : Object(_position)
 	{
-		init(_atlasRect, _instanceAttributes, _pvMatrix);
+		init(_atlasRect, _pvMatrix);
 	}
 
-	DrawableObject(glm::fvec2 _position, glm::fvec2 _scale, glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes,
+	DrawableObject(glm::fvec2 _position, glm::fvec2 _scale, glm::fvec4 _atlasRect,
 	glm::mat4 _pvMatrix) : Object(_position, _scale)
 	{
-		init(_atlasRect, _instanceAttributes, _pvMatrix);
+		init(_atlasRect, _pvMatrix);
 	}
 
 	DrawableObject(glm::fvec2 _position, glm::float32 _rotation, glm::fvec2 _scale, glm::fvec4 _atlasRect,
-		InstanceAttributes* _instanceAttributes, glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
+		glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
 	{
-		init(_atlasRect, _instanceAttributes, _pvMatrix);
+		init(_atlasRect, _pvMatrix);
 	}
 
 	void EnterScreen()
 	{
-		attributeIndex = PopFreeIndex(); //get a free index
-		//add code to above line to catch case where there are no free indices
-		SetAttributes(&myInstanceAttributes); //set local copy of attributes to appropriate spot in global attribs
 		isVisible = true;
 	}
 
 	void LeaveScreen()
 	{
-		//push my index to free indices
-		//unset my index
 		isVisible = false;
 	}
 
@@ -149,20 +140,8 @@ public:
 		else return false; //else return false (we won't be drawn)
 	}
 
-	void SetAttributes(InstanceAttributes* newAttributes)
+	void init(glm::fvec4 _atlasRect, glm::mat4 _pvMatrix)
 	{
-		myInstanceAttributes = *newAttributes;
-		GlobalInstanceAttributes[attributeIndex] = *newAttributes;
-	}
-
-	InstanceAttributes* GetGlobalAttributes()
-	{
-		return &(GlobalInstanceAttributes[attributeIndex]);
-	}
-
-	void init(glm::fvec4 _atlasRect, InstanceAttributes* _instanceAttributes, glm::mat4 _pvMatrix)
-	{
-		GlobalInstanceAttributes = _instanceAttributes; //copy pointer to global array of attributes
 		myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix(_pvMatrix); //assign attributes to local struct
 		myInstanceAttributes.atlasRect = _atlasRect; //..
 		pvMatrix = _pvMatrix;
@@ -194,7 +173,6 @@ public:
 		if (CheckVisible())
 		{
 			myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix();
-			SetAttributes(&myInstanceAttributes);
 		}
 	}
 

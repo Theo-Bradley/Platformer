@@ -38,8 +38,6 @@ SDL_Window* window; //main window
 static SDL_Renderer* renderer; //main renderer
 SDL_GLContext glContext;
 bool running = true;
-std::stack<unsigned int> FreeInstanceAttributeIndices; //only one copy allowed, main thread access only
-InstanceAttributes GlobalInstanceAttributes[MAX_SPRITES];
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
 glm::mat4 projViewMat; //combined projection view matrix
@@ -173,11 +171,6 @@ int init()
 	glAttachShader(errShader, defaultFrag); //.. frag ..
 	glLinkProgram(errShader); //link shaders into one program
 
-	for (unsigned int i = 1; i <= MAX_SPRITES; i++)
-	{
-		FreeInstanceAttributeIndices.push(MAX_SPRITES - i); //populate free indices stack
-	}
-
 	glm::mat4 viewMat = glm::mat4(1.0f); //identity matrix
 	viewMat = glm::translate(viewMat, -glm::vec3(0.0f, 0.0f, 1.0f)); //translate by inverse of camera position
 
@@ -189,8 +182,8 @@ int init()
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	b2WorldId pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(0.0f, 128.0f, 0.0f, 128.0f), GlobalInstanceAttributes, projViewMat);
-	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(128.0f, 256.0f, 0.0f, 128.0f), GlobalInstanceAttributes, projViewMat);
+	skibidi = new DrawableObject(glm::fvec2(1.0f, 0.0f), glm::radians(45.0f), glm::fvec2(0.25f), glm::fvec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
+	toilet = new DrawableObject(glm::fvec2(-1.0f, 0.0f), glm::fvec2(0.1f), glm::fvec4(128.0f, 256.0f, 0.0f, 128.0f), projViewMat);
 
 	basicShader = new Shader(Path("assets/shaders/basic.vert"), Path("assets/shaders/basic.frag"));
 
@@ -239,18 +232,6 @@ void draw()
 {
 	//...
 	SDL_GL_SwapWindow(window); //swap buffers
-}
-
-static unsigned int PopFreeIndex()
-{
-	unsigned int newFreeIndex = FreeInstanceAttributeIndices.top();
-	FreeInstanceAttributeIndices.pop();
-	return newFreeIndex;
-}
-
-static void PushFreeIndex(unsigned int freeIndex)
-{
-	FreeInstanceAttributeIndices.push(freeIndex);
 }
 
 /*std::string Path(std::string assetPath)
