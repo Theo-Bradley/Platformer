@@ -1,0 +1,4 @@
+Add z value for DrawableObjects and sort transparent ones (all of them lol) when drawing??
+	-perhaps don't need to sort with draw instanced
+	-investigate disabling depth buffer drawing as it's likely unnecessary
+	-possible solution: have z value be the z coordinate, sort objects by z coord, draw in order (HOW? i'm using one draw call...)

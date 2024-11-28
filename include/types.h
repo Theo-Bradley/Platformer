@@ -382,8 +382,8 @@ public:
 	int width = 0;
 	int height = 0;
 	int channels = 0;
-	GLenum glType;
-	GLuint texture;
+	GLenum glType = GL_NONE;
+	GLuint texture = 0;
 
 	Texture()
 	{
@@ -391,8 +391,8 @@ public:
 
 	Texture(std::string _path)
 	{
-		unsigned char* data = stbi_load(_path.c_str(), &width, &height, &channels, 0);
-		if (data != NULL)
+		unsigned char* data = stbi_load(_path.c_str(), &width, &height, &channels, 0); //load image from disk
+		if (data != NULL) //if image was loaded properly
 		{
 			switch (channels) //set image type
 			{
@@ -408,22 +408,23 @@ public:
 			case 4:
 				glType = GL_RGBA;
 				break;
-			default:
-				stbi_image_free(data);
-				return;
+			default: //incompatible number of channels
+				stbi_image_free(data); //release image data
+				return; //exit constructor
 			}
 
-			glGenTextures(1, &texture);
-			glBindTexture(GL_TEXTURE_2D, texture);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexImage2D(GL_TEXTURE_2D, 0, glType, width, height, 0, glType, GL_UNSIGNED_BYTE, data);
-			glGenerateMipmap(GL_TEXTURE_2D);
-			isLoaded = true;
+			glActiveTexture(GL_TEXTURE0); //select the default texture unit (to avoid messing up another texture unit's texture)
+			glGenTextures(1, &texture); //gen empty tex
+			glBindTexture(GL_TEXTURE_2D, texture); //bind it
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); //set wrapping values
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); //..
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR); //set filter values
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); //..
+			glTexImage2D(GL_TEXTURE_2D, 0, glType, width, height, 0, glType, GL_UNSIGNED_BYTE, data); //populate texture
+			glGenerateMipmap(GL_TEXTURE_2D); //generate mipmap
+			isLoaded = true; //finished loading
 		}
-		stbi_image_free(data);
+		stbi_image_free(data); //free the image data as it's now unused
 	}
 
 	~Texture()
