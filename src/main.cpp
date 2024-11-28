@@ -52,7 +52,7 @@ unsigned long long int elapsedTime;
 DrawableObject* skibidi;
 PhysicsObject* toilet;
 Shader* basicShader;
-SDL_Surface* upArrow;
+Texture* atlas;
 
 int main(int argv, char** args)
 {
@@ -178,7 +178,7 @@ int init()
 	sprites.push_back(skibidi);
 	sprites.push_back(toilet);
 
-	Texture testTex = Texture(Path("assets/sprites/Atlas.png"));
+	atlas = new Texture(Path("assets/sprites/Atlas.png"));
 
 	return 0;
 }

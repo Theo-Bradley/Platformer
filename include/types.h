@@ -425,6 +425,11 @@ public:
 		}
 		stbi_image_free(data);
 	}
+
+	~Texture()
+	{
+		glDeleteTextures(1, &texture);
+	}
 };
 
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
