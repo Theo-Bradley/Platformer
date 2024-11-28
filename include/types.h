@@ -5,6 +5,9 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_WINDOWS_UTF8 //change this have ifdef WINDOWS or something similar for crossplatform compilation
+#include <stb/stb_image.h>
 
 #define MAX_SPRITES 128
 
@@ -256,7 +259,6 @@ class PhysicsObject : public DrawableObject
 {
 public:
 	b2BodyId pBody;
-	b2ShapeId pShape;
 	
 	PhysicsObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix)
 		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
@@ -268,7 +270,12 @@ public:
 		b2ShapeDef shapeDef = b2DefaultShapeDef();
 		shapeDef.friction = 0.5f;
 		b2Polygon bPoly = b2MakeBox(scale.x/2.f, scale.y/2.f);
-		pShape = b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
+		b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
+	}
+
+	~PhysicsObject()
+	{
+		b2DestroyBody(pBody);
 	}
 
 	void UpdateBody()
@@ -365,6 +372,58 @@ public:
 	{
 		if (isLoaded)
 			glDeleteProgram(program);
+	}
+};
+
+class Texture
+{
+public:
+	bool isLoaded = false;
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+	GLenum glType;
+	GLuint texture;
+
+	Texture()
+	{
+	}
+
+	Texture(std::string _path)
+	{
+		unsigned char* data = stbi_load(_path.c_str(), &width, &height, &channels, 0);
+		if (data != NULL)
+		{
+			switch (channels) //set image type
+			{
+			case 1:
+				glType = GL_RED;
+				break;
+			case 2:
+				glType = GL_RG;
+				break;
+			case 3:
+				glType = GL_RGB;
+				break;
+			case 4:
+				glType = GL_RGBA;
+				break;
+			default:
+				stbi_image_free(data);
+				return;
+			}
+
+			glGenTextures(1, &texture);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexImage2D(GL_TEXTURE_2D, 0, glType, width, height, 0, glType, GL_UNSIGNED_BYTE, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
+			isLoaded = true;
+		}
+		stbi_image_free(data);
 	}
 };
 

@@ -46,7 +46,6 @@ GLuint quadVBO = 0; //quad vertex attribute buffer object
 GLuint quadVIO = 0; //quad vertex indices buffer object
 GLuint quadVAO = 0; //quad vertex array object
 GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
-GLuint arrowTex; //texture
 std::vector<DrawableObject*> sprites;
 unsigned long long int elapsedTime;
 
@@ -106,6 +105,8 @@ int init()
 	SDL_GL_SwapWindow(window); //swap buffers
 	glClear(GL_COLOR_BUFFER_BIT); //clear back buffer
 	glDisable(GL_CULL_FACE); //disable face culling for now
+	glEnable(GL_BLEND); //enable alpha blending
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	//create default shader
 	GLuint defaultVert = 0;
 	GLuint defaultFrag = 0;
@@ -122,9 +123,6 @@ int init()
 	glLinkProgram(errShader); //link shaders into one program
 
 	basicShader = new Shader(Path("assets/shaders/basic.vert"), Path("assets/shaders/basic.frag"));
-
-	std::string imagePath = Path("assets/sprites/arrow.bmp");
-	upArrow = SDL_LoadBMP(imagePath.c_str());
 
 	glGenBuffers(1, &quadVBO); //generate empty buffer
 	glGenBuffers(1, &quadVIO); //..
@@ -157,11 +155,6 @@ int init()
 	glEnableVertexAttribArray(6); //..
 
 	glUseProgram(basicShader->program);
-	glGenTextures(1, &arrowTex);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, arrowTex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, upArrow->w, upArrow->h, 0, GL_RGB, GL_UNSIGNED_BYTE, (upArrow->pixels));
-	glGenerateMipmap(GL_TEXTURE_2D);
 	glUniform1i(glGetUniformLocation(basicShader->program, "tex"), 0);
 	const glm::vec2 atlasSize = glm::vec2(256.f, 128.f);
 	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlasSize.x, atlasSize.y);
@@ -180,10 +173,12 @@ int init()
 	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
 	skibidi = new DrawableObject(glm::vec2(1.0f, 0.0f), glm::radians(45.0f), glm::vec2(0.25f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
-	toilet = new PhysicsObject(glm::vec2(-1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(128.0f, 256.0f, 0.0f, 128.0f), projViewMat);
+	toilet = new PhysicsObject(glm::vec2(-1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
 
 	sprites.push_back(skibidi);
 	sprites.push_back(toilet);
+
+	Texture testTex = Texture(Path("assets/sprites/Atlas.png"));
 
 	return 0;
 }
