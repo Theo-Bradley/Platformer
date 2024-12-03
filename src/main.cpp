@@ -61,7 +61,7 @@ const float jumpSpeed = 2.5f;
 
 b2BodyId floorBody;
 DrawableObject* skibidi;
-Player* toilet;
+Player* player;
 Shader* basicShader;
 Texture* atlas;
 bool canJump = false;
@@ -78,7 +78,7 @@ int main(int argv, char** args)
 		loop();
 
 		skibidi->Move(glm::vec2(0.0003f, 0));
-		toilet->UpdateBody();
+		player->UpdateBody();
 		
 		draw();
 	}
@@ -187,10 +187,10 @@ int init()
 	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
 	skibidi = new DrawableObject(glm::vec2(1.0f, 0.0f), glm::radians(45.0f), glm::vec2(0.25f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
-	toilet = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
+	player = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
 
 	sprites.push_back(skibidi);
-	sprites.push_back(toilet);
+	sprites.push_back(player);
 
 	b2BodyDef floorDef = b2DefaultBodyDef();
 	floorDef.type = b2BodyType::b2_staticBody;
@@ -254,24 +254,10 @@ static void handleKeysDown(SDL_KeyboardEvent* _key)
 	{
 		if (JumpKey.Press())
 		{
-			int capacity = b2Body_GetContactCapacity(toilet->pBody);
-			b2ContactData* contacts = new b2ContactData[capacity];
-			b2Body_GetContactData(toilet->pBody, contacts, capacity);
-			for (int i = 0; i < capacity; i++)
-			{
-				void* contactUserData = b2Body_GetUserData(b2Shape_GetBody(contacts[i].shapeIdA));
-				if (contactUserData != nullptr) //if shape has user data
-				{
-					if (((PhysicsUserData*)contactUserData)->isGround == true) //if it has user data it will always be of type PhysicsUserData
-					{ //so we can just c style cast it
-						canJump = true;
-						break;
-					}
-				}
-			}
-			if (canJump)
-			{
-				b2Body_ApplyLinearImpulseToCenter(toilet->pBody, b2Vec2{ 0.0f, b2Body_GetMass(toilet->pBody) * jumpSpeed }, true);
+			canJump = player->isGrounded(); //check if we are grounded
+			if (canJump) //if we can jump
+			{ //jump
+				b2Body_ApplyLinearImpulseToCenter(player->pBody, b2Vec2{ 0.0f, b2Body_GetMass(player->pBody) * jumpSpeed }, true);
 				canJump = false;
 			}
 		}
@@ -318,15 +304,15 @@ void loop()
 
 	if (newMoveSpeed < 0) //if moving left
 	{
-		b2Body_SetLinearVelocity(toilet->pBody, b2Vec2{ glm::min(b2Body_GetLinearVelocity(toilet->pBody).x, newMoveSpeed),
-					b2Body_GetLinearVelocity(toilet->pBody).y }); //apply velocity
+		b2Body_SetLinearVelocity(player->pBody, b2Vec2{ glm::min(b2Body_GetLinearVelocity(player->pBody).x, newMoveSpeed),
+					b2Body_GetLinearVelocity(player->pBody).y }); //apply velocity
 	}
 	else
 	{
 		if (newMoveSpeed > 0) //if moving right
 		{
-			b2Body_SetLinearVelocity(toilet->pBody, b2Vec2{ glm::max(b2Body_GetLinearVelocity(toilet->pBody).x, newMoveSpeed),
-				b2Body_GetLinearVelocity(toilet->pBody).y }); //apply velocity
+			b2Body_SetLinearVelocity(player->pBody, b2Vec2{ glm::max(b2Body_GetLinearVelocity(player->pBody).x, newMoveSpeed),
+				b2Body_GetLinearVelocity(player->pBody).y }); //apply velocity
 		}
 	}
 

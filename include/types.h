@@ -483,6 +483,25 @@ public:
 		PhysicsObject(_pos, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false})
 	{
 	}
+
+	bool isGrounded()
+	{
+		int capacity = b2Body_GetContactCapacity(pBody);
+		b2ContactData* contacts = new b2ContactData[capacity];
+		b2Body_GetContactData(pBody, contacts, capacity);
+		for (int i = 0; i < capacity; i++)
+		{
+			void* contactUserData = b2Body_GetUserData(b2Shape_GetBody(contacts[i].shapeIdA));
+			if (contactUserData != nullptr) //if shape has user data
+			{
+				if (((PhysicsUserData*)contactUserData)->isGround == true) //if it has user data it will always be of type PhysicsUserData
+				{ //so we can just c style cast it
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 };
 
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
