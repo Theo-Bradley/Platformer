@@ -39,6 +39,7 @@ void draw();
 #pragma region KeyDefinitions
 Key LeftKey = Key(SDLK_a);
 Key RightKey = Key(SDLK_d);
+Key JumpKey = Key(SDLK_SPACE);
 #pragma endregion
 
 SDL_Window* window; //main window
@@ -54,14 +55,17 @@ GLuint quadVAO = 0; //quad vertex array object
 GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
 std::vector<DrawableObject*> sprites;
 unsigned long long int elapsedTime;
-float newMoveSpeed = 0;
-const float moveSpeed = 0.5;
+float newMoveSpeed = 0.0f;
+const float moveSpeed = 0.66f;
+const float jumpSpeed = 2.5f;
 
 b2BodyId floorBody;
 DrawableObject* skibidi;
 PhysicsObject* toilet;
 Shader* basicShader;
 Texture* atlas;
+bool canJump = false;
+PhysicsUserData floorData;
 
 int main(int argv, char** args)
 {
@@ -191,9 +195,11 @@ int init()
 	b2BodyDef floorDef = b2DefaultBodyDef();
 	floorDef.type = b2BodyType::b2_staticBody;
 	floorDef.position = b2Vec2{0.0f, -0.5f};
+	floorData.isGround = true;
+	floorDef.userData = &floorData;
 	floorBody = b2CreateBody(pWorld, &floorDef);
 	b2ShapeDef floorShape = b2DefaultShapeDef();
-	floorShape.friction = 0.5f;
+	floorShape.friction = 0.25f;
 	floorShape.restitution = 0.25f;
 	b2Polygon floorPoly = b2MakeBox(1.5f, 0.25f);
 	b2CreatePolygonShape(floorBody, &floorShape, &floorPoly);
@@ -233,7 +239,6 @@ static void handleKeysDown(SDL_KeyboardEvent* _key)
 		if (LeftKey.Press())
 		{
 			newMoveSpeed -= moveSpeed;
-
 		}
 		return;
 	}
@@ -242,7 +247,33 @@ static void handleKeysDown(SDL_KeyboardEvent* _key)
 		if (RightKey.Press())
 		{
 			newMoveSpeed += moveSpeed;
-
+		}
+		return;
+	}
+	if (key == JumpKey.keyCode)
+	{
+		if (JumpKey.Press())
+		{
+			int capacity = b2Body_GetContactCapacity(toilet->pBody);
+			b2ContactData* contacts = new b2ContactData[capacity];
+			b2Body_GetContactData(toilet->pBody, contacts, capacity);
+			for (int i = 0; i < capacity; i++)
+			{
+				void* contactUserData = b2Body_GetUserData(b2Shape_GetBody(contacts[i].shapeIdA));
+				if (contactUserData != nullptr) //if shape has user data
+				{
+					if (((PhysicsUserData*)contactUserData)->isGround == true) //if it has user data it will always be of type PhysicsUserData
+					{ //so we can just c style cast it
+						canJump = true;
+						break;
+					}
+				}
+			}
+			if (canJump)
+			{
+				b2Body_ApplyLinearImpulseToCenter(toilet->pBody, b2Vec2{ 0.0f, b2Body_GetMass(toilet->pBody) * jumpSpeed }, true);
+				canJump = false;
+			}
 		}
 		return;
 	}
@@ -272,6 +303,11 @@ static void handleKeysUp(SDL_KeyboardEvent* _key)
 		}
 		return;
 	}
+	if (key == JumpKey.keyCode)
+	{
+		JumpKey.Release();
+		return;
+	}
 }
 
 void loop()
@@ -293,6 +329,7 @@ void loop()
 				b2Body_GetLinearVelocity(toilet->pBody).y }); //apply velocity
 		}
 	}
+
 	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4); //step the physics world
 }
 

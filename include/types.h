@@ -467,6 +467,12 @@ public:
 	}
 };
 
+struct PhysicsUserData
+{
+	bool isGround;
+
+};
+
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
 {
 	glm::vec3 tl = glm::vec4(-1, -1, 0, 1) * glm::inverse(projViewMat);

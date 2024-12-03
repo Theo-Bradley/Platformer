@@ -1,5 +1,39 @@
 ﻿  main.cpp
-F:\Unreal Projects\Platformer\Platformer\src\main.cpp(253,9): warning C4101: 'oldVel': unreferenced local variable
+box2d.lib(geometry.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(geometry.obj)' or at ''; linking object as if no debug info
+box2d.lib(types.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(types.obj)' or at ''; linking object as if no debug info
+box2d.lib(world.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(world.obj)' or at ''; linking object as if no debug info
+box2d.lib(body.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(body.obj)' or at ''; linking object as if no debug info
+box2d.lib(shape.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(shape.obj)' or at ''; linking object as if no debug info
+box2d.lib(math_functions.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(math_functions.obj)' or at ''; linking object as if no debug info
+box2d.lib(hull.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(hull.obj)' or at ''; linking object as if no debug info
+box2d.lib(distance.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(distance.obj)' or at ''; linking object as if no debug info
+box2d.lib(core.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(core.obj)' or at ''; linking object as if no debug info
+box2d.lib(allocate.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(allocate.obj)' or at ''; linking object as if no debug info
+box2d.lib(timer.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(timer.obj)' or at ''; linking object as if no debug info
+box2d.lib(bitset.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(bitset.obj)' or at ''; linking object as if no debug info
+box2d.lib(array.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(array.obj)' or at ''; linking object as if no debug info
+box2d.lib(table.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(table.obj)' or at ''; linking object as if no debug info
+box2d.lib(aabb.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(aabb.obj)' or at ''; linking object as if no debug info
+box2d.lib(dynamic_tree.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(dynamic_tree.obj)' or at ''; linking object as if no debug info
+box2d.lib(broad_phase.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(broad_phase.obj)' or at ''; linking object as if no debug info
+box2d.lib(block_array.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(block_array.obj)' or at ''; linking object as if no debug info
+box2d.lib(constraint_graph.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(constraint_graph.obj)' or at ''; linking object as if no debug info
+box2d.lib(id_pool.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(id_pool.obj)' or at ''; linking object as if no debug info
+box2d.lib(island.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(island.obj)' or at ''; linking object as if no debug info
+box2d.lib(stack_allocator.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(stack_allocator.obj)' or at ''; linking object as if no debug info
+box2d.lib(contact.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(contact.obj)' or at ''; linking object as if no debug info
+box2d.lib(solver.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(solver.obj)' or at ''; linking object as if no debug info
+box2d.lib(joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(solver_set.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(solver_set.obj)' or at ''; linking object as if no debug info
+box2d.lib(manifold.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(manifold.obj)' or at ''; linking object as if no debug info
+box2d.lib(contact_solver.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(contact_solver.obj)' or at ''; linking object as if no debug info
+box2d.lib(distance_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(distance_joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(motor_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(motor_joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(mouse_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(mouse_joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(prismatic_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(prismatic_joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(revolute_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(revolute_joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(weld_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(weld_joint.obj)' or at ''; linking object as if no debug info
+box2d.lib(wheel_joint.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(wheel_joint.obj)' or at ''; linking object as if no debug info
   Platformer.vcxproj -> F:\Unreal Projects\Platformer\Platformer\build\x64\Debug\Platformer.exe
   Copy DLLs and Assets
   0 File(s) copied
