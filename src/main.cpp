@@ -30,10 +30,16 @@ const char* frag_default = "#version 330 core\n"
 void quit(int code); //quit function prototype
 int init();
 static void handleEvents();
-void handleKeys(SDL_KeyboardEvent* key);
+void handleKeysDown(SDL_KeyboardEvent* key);
+void handleKeysUp(SDL_KeyboardEvent* key);
 void loop();
 void draw();
-#define Path(assetPath)  std::string(SDL_GetBasePath() + std::string(##assetPath##))
+#define Path(assetPath) std::string(SDL_GetBasePath() + std::string(##assetPath##))
+
+#pragma region KeyDefinitions
+Key LeftKey = Key(SDLK_a);
+Key RightKey = Key(SDLK_d);
+#pragma endregion
 
 SDL_Window* window; //main window
 static SDL_Renderer* renderer; //main renderer
@@ -48,7 +54,10 @@ GLuint quadVAO = 0; //quad vertex array object
 GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
 std::vector<DrawableObject*> sprites;
 unsigned long long int elapsedTime;
+float newMoveSpeed = 0;
+const float moveSpeed = 0.5;
 
+b2BodyId floorBody;
 DrawableObject* skibidi;
 PhysicsObject* toilet;
 Shader* basicShader;
@@ -59,6 +68,7 @@ int main(int argv, char** args)
 	init();
 	//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Working", "It's Working!", NULL); //post a basic messagebox
 
+	elapsedTime = SDL_GetTicks64();
 	while (running)
 	{
 		loop();
@@ -178,6 +188,16 @@ int init()
 	sprites.push_back(skibidi);
 	sprites.push_back(toilet);
 
+	b2BodyDef floorDef = b2DefaultBodyDef();
+	floorDef.type = b2BodyType::b2_staticBody;
+	floorDef.position = b2Vec2{0.0f, -0.5f};
+	floorBody = b2CreateBody(pWorld, &floorDef);
+	b2ShapeDef floorShape = b2DefaultShapeDef();
+	floorShape.friction = 0.5f;
+	floorShape.restitution = 0.25f;
+	b2Polygon floorPoly = b2MakeBox(1.5f, 0.25f);
+	b2CreatePolygonShape(floorBody, &floorShape, &floorPoly);
+
 	atlas = new Texture(Path("assets/sprites/Atlas.png"));
 
 	return 0;
@@ -195,19 +215,62 @@ static void handleEvents()
 			quit(1);
 			break;
 		case SDL_KEYDOWN:
-			handleKeys(&event.key);
+			handleKeysDown(&event.key);
+			break;
+		case SDL_KEYUP:
+			handleKeysUp(&event.key);
 			break;
 		}
 	}
 }
 
-static void handleKeys(SDL_KeyboardEvent* key)
+static void handleKeysDown(SDL_KeyboardEvent* _key)
 {
-	switch (key->keysym.sym)
+	SDL_Keycode key = _key->keysym.sym;
+
+	if (key == LeftKey.keyCode)
 	{
-	case SDLK_ESCAPE:
+		if (LeftKey.Press())
+		{
+			newMoveSpeed -= moveSpeed;
+
+		}
+		return;
+	}
+	if (key == RightKey.keyCode)
+	{
+		if (RightKey.Press())
+		{
+			newMoveSpeed += moveSpeed;
+
+		}
+		return;
+	}
+}
+
+static void handleKeysUp(SDL_KeyboardEvent* _key)
+{
+	SDL_Keycode key = _key->keysym.sym;
+	if (key == SDLK_ESCAPE)
+	{
 		quit(1);
-		break;
+		return;
+	}
+	if (key == LeftKey.keyCode)
+	{
+		if (LeftKey.Release())
+		{
+			newMoveSpeed += moveSpeed;
+		}
+		return;
+	}
+	if (key == RightKey.keyCode)
+	{
+		if (RightKey.Release())
+		{
+			newMoveSpeed -= moveSpeed;
+		}
+		return;
 	}
 }
 
@@ -216,7 +279,21 @@ void loop()
 	unsigned long long int oldElapsedTime = elapsedTime;
 	elapsedTime = SDL_GetTicks64(); //get elapsed time in ms
 	handleEvents();
-	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4);
+
+	if (newMoveSpeed < 0) //if moving left
+	{
+		b2Body_SetLinearVelocity(toilet->pBody, b2Vec2{ glm::min(b2Body_GetLinearVelocity(toilet->pBody).x, newMoveSpeed),
+					b2Body_GetLinearVelocity(toilet->pBody).y }); //apply velocity
+	}
+	else
+	{
+		if (newMoveSpeed > 0) //if moving right
+		{
+			b2Body_SetLinearVelocity(toilet->pBody, b2Vec2{ glm::max(b2Body_GetLinearVelocity(toilet->pBody).x, newMoveSpeed),
+				b2Body_GetLinearVelocity(toilet->pBody).y }); //apply velocity
+		}
+	}
+	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4); //step the physics world
 }
 
 void draw()

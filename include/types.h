@@ -433,6 +433,40 @@ public:
 	}
 };
 
+class Key
+{
+private:
+	bool flop = false;
+
+public:
+	SDL_KeyCode keyCode;
+
+	Key(SDL_KeyCode _keyCode)
+	{
+		keyCode = _keyCode;
+	}
+
+	bool Press() //returns true on first call
+	{
+		if (!flop)
+		{
+			flop = true;
+			return true;
+		}
+		else return false;
+	}
+
+	bool Release() //returns true on first call
+	{
+		if (flop)
+		{
+			flop = false;
+			return true;
+		}
+		else return false;
+	}
+};
+
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
 {
 	glm::vec3 tl = glm::vec4(-1, -1, 0, 1) * glm::inverse(projViewMat);
