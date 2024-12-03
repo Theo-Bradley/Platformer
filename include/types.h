@@ -255,17 +255,26 @@ public:
 	}
 };
 
+struct PhysicsUserData
+{
+	bool isGround;
+
+};
+
 class PhysicsObject : public DrawableObject
 {
 public:
 	b2BodyId pBody;
-	
-	PhysicsObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix)
+	PhysicsUserData userData;
+
+	PhysicsObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, PhysicsUserData _userData)
 		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
 	{
+		userData = _userData;
 		b2BodyDef bodyDef = b2DefaultBodyDef();
 		bodyDef.position = b2Vec2{(float)position.x, (float)position.y};
 		bodyDef.type = b2_dynamicBody;
+		bodyDef.userData = &userData;
 		pBody = b2CreateBody(pWorld, &bodyDef);
 		b2ShapeDef shapeDef = b2DefaultShapeDef();
 		shapeDef.friction = 0.5f;
@@ -467,10 +476,13 @@ public:
 	}
 };
 
-struct PhysicsUserData
+class Player : public PhysicsObject
 {
-	bool isGround;
-
+public:
+	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
+		PhysicsObject(_pos, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false})
+	{
+	}
 };
 
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)

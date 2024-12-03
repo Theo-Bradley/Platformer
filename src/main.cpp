@@ -61,7 +61,7 @@ const float jumpSpeed = 2.5f;
 
 b2BodyId floorBody;
 DrawableObject* skibidi;
-PhysicsObject* toilet;
+Player* toilet;
 Shader* basicShader;
 Texture* atlas;
 bool canJump = false;
@@ -187,7 +187,7 @@ int init()
 	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
 	skibidi = new DrawableObject(glm::vec2(1.0f, 0.0f), glm::radians(45.0f), glm::vec2(0.25f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
-	toilet = new PhysicsObject(glm::vec2(-1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
+	toilet = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
 
 	sprites.push_back(skibidi);
 	sprites.push_back(toilet);
