@@ -2,7 +2,6 @@
 #include <SDL/SDL.h>
 #include <glad/glad.h>
 #include <SDL/SDL_opengl.h>
-#include <box2d/box2d.h>
 #include "types.h"
 #include <vector>
 #include <algorithm>
@@ -59,13 +58,13 @@ float newMoveSpeed = 0.0f;
 const float moveSpeed = 0.66f;
 const float jumpSpeed = 2.5f;
 
-b2BodyId floorBody;
 DrawableObject* skibidi;
 Player* player;
 Shader* basicShader;
 Texture* atlas;
+Platform* floorPlatform;
+
 bool canJump = false;
-PhysicsUserData floorData;
 
 int main(int argv, char** args)
 {
@@ -192,17 +191,7 @@ int init()
 	sprites.push_back(skibidi);
 	sprites.push_back(player);
 
-	b2BodyDef floorDef = b2DefaultBodyDef();
-	floorDef.type = b2BodyType::b2_staticBody;
-	floorDef.position = b2Vec2{0.0f, -0.5f};
-	floorData.isGround = true;
-	floorDef.userData = &floorData;
-	floorBody = b2CreateBody(pWorld, &floorDef);
-	b2ShapeDef floorShape = b2DefaultShapeDef();
-	floorShape.friction = 0.25f;
-	floorShape.restitution = 0.25f;
-	b2Polygon floorPoly = b2MakeBox(1.5f, 0.25f);
-	b2CreatePolygonShape(floorBody, &floorShape, &floorPoly);
+	floorPlatform = new Platform(glm::vec2(0.0f, -0.5f), 0.0f, glm::vec2(3.0f, 0.5f), glm::vec4(0, 0, 0, 0), projViewMat);
 
 	atlas = new Texture(Path("assets/sprites/Atlas.png"));
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <GLM/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <box2d/box2d.h>
 #include <stack>
 #include <fstream>
 #include <iostream>
@@ -121,11 +122,13 @@ public:
 		return rotation;
 	}
 };
+
 struct InstanceAttributes
 {
 	glm::mat4 pvmMatrix;
 	glm::fvec4 atlasRect; //l,r,t,b
 };
+
 class DrawableObject : public Object
 {
 private:
@@ -213,37 +216,37 @@ public:
 		}
 	}
 
-	void Move(glm::vec2 _amt)
+	virtual void Move(glm::vec2 _amt)
 	{
 		position += _amt;
 		outdatedAttribs = true;
 	}
 
-	void Scale(glm::vec2 _amt)
+	virtual void Scale(glm::vec2 _amt)
 	{
 		scale *= _amt;
 		outdatedAttribs = true;
 	}
 
-	void Rotate(glm::float32 _amt)
+	virtual void Rotate(glm::float32 _amt)
 	{
 		rotation = glm::mod(rotation + _amt, 2 * glm::pi<float>());
 		outdatedAttribs = true;
 	}
 
-	void SetPosition(glm::vec2 _pos)
+	virtual void SetPosition(glm::vec2 _pos)
 	{
 		position = _pos;
 		outdatedAttribs = true;
 	}
 
-	void SetScale(glm::vec2 _scale)
+	virtual void SetScale(glm::vec2 _scale)
 	{
 		scale = _scale;
 		outdatedAttribs = true;
 	}
 
-	void SetRotation(glm::float32 _rot)
+	virtual void SetRotation(glm::float32 _rot)
 	{
 		rotation = _rot;
 		outdatedAttribs = true;
@@ -267,24 +270,66 @@ public:
 	b2BodyId pBody;
 	PhysicsUserData userData;
 
-	PhysicsObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, PhysicsUserData _userData)
+	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, PhysicsUserData _userData, bool isDynamic)
 		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
 	{
 		userData = _userData;
 		b2BodyDef bodyDef = b2DefaultBodyDef();
 		bodyDef.position = b2Vec2{(float)position.x, (float)position.y};
-		bodyDef.type = b2_dynamicBody;
+		if (isDynamic)
+			bodyDef.type = b2_dynamicBody;
+		else
+			bodyDef.type = b2_staticBody;
 		bodyDef.userData = &userData;
 		pBody = b2CreateBody(pWorld, &bodyDef);
 		b2ShapeDef shapeDef = b2DefaultShapeDef();
 		shapeDef.friction = 0.5f;
 		b2Polygon bPoly = b2MakeBox(scale.x/2.f, scale.y/2.f);
 		b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
+		b2Body_SetTransform(pBody, b2Vec2{position.x, position.y}, b2MakeRot(rotation));
 	}
 
 	~PhysicsObject()
 	{
 		b2DestroyBody(pBody);
+	}
+
+	virtual void Move(glm::vec2 _amt)
+	{
+		DrawableObject::Move(_amt);
+		b2Body_SetTransform(pBody, b2Vec2{position.x, position.y}, b2Body_GetRotation(pBody));
+	}
+
+	virtual void Scale(glm::vec2 _amt)
+	{
+		DrawableObject::Scale(_amt);
+		b2Polygon newCollider = b2MakeBox(scale.x / 2.0f, scale.y / 2.0f);
+		UpdateCollider(&newCollider);
+	}
+
+	virtual void Rotate(glm::float32 _amt)
+	{
+		DrawableObject::Rotate(_amt);
+		b2Body_SetTransform(pBody, b2Body_GetPosition(pBody), b2MakeRot(rotation));
+	}
+
+	virtual void SetPosition(glm::vec2 _pos)
+	{
+		DrawableObject::SetPosition(_pos);
+		b2Body_SetTransform(pBody, b2Vec2{ position.x, position.y }, b2Body_GetRotation(pBody));
+	}
+
+	virtual void SetScale(glm::vec2 _scale)
+	{
+		DrawableObject::SetScale(_scale);
+		b2Polygon newCollider = b2MakeBox(scale.x / 2.0f, scale.y / 2.0f);
+		UpdateCollider(&newCollider);
+	}
+
+	virtual void SetRotation(glm::float32 _rot)
+	{
+		DrawableObject::SetRotation(_rot);
+		b2Body_SetTransform(pBody, b2Body_GetPosition(pBody), b2MakeRot(rotation));
 	}
 
 	void UpdateBody()
@@ -293,6 +338,14 @@ public:
 		b2Rot newRotation = b2Body_GetRotation(pBody);
 		SetPosition(glm::vec2(newPosition.x, newPosition.y));
 		SetRotation(glm::float32(b2Rot_GetAngle(newRotation)));
+	}
+
+	void UpdateCollider(b2Polygon* newCollider)
+	{
+		b2ShapeId shape;
+		b2Body_GetShapes(pBody, &shape, 1);
+		b2Shape_SetPolygon(shape, newCollider);
+		b2Body_SetMassData(pBody, b2ComputePolygonMass(newCollider, b2Shape_GetDensity(shape)));
 	}
 };
 
@@ -480,7 +533,7 @@ class Player : public PhysicsObject
 {
 public:
 	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
-		PhysicsObject(_pos, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false})
+		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false}, true)
 	{
 	}
 
@@ -502,6 +555,13 @@ public:
 		}
 		return false;
 	}
+};
+
+class Platform : public PhysicsObject
+{
+public:
+	Platform(glm::vec2 _pos, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
+		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true }, false) {}
 };
 
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
