@@ -32,6 +32,7 @@ class DrawableObject;
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat);
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
+template <typename T> int sgn(T val); //code from https://stackoverflow.com/questions/1903954/is-there-a-standard-sign-function-signum-sgn-in-c-c
 
 GLuint errShader = 0;
 glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
@@ -557,6 +558,60 @@ public:
 	}
 };
 
+class Enemy : public PhysicsObject
+{
+public:
+	Player* player;
+
+	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player) :
+		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false }, true)
+	{
+		player = _player;
+	}
+
+	virtual void UpdateEnemy()
+	{
+	}
+};
+
+class PatrolEnemy : public Enemy
+{
+public:
+	float* waypoints;
+	unsigned int waypointCount;
+	unsigned int currentWaypoint = 0;
+	const float patrolSpeed = 0.45f;
+
+	PatrolEnemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player,
+		float* _waypoints, unsigned int _waypointCount) :
+		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player)
+	{
+		waypointCount = _waypointCount;
+		waypoints = new float[waypointCount]; //populate waypoints with new empty array
+		for (int i = 0; i < waypointCount; i++) //iterate over each waypoint
+		{
+			waypoints[i] = _waypoints[i]; //copy in waypoints
+		} //this means _waypoints doesn't need to live longer than the constructor
+	}
+
+	void UpdateEnemy()
+	{
+		if (waypointCount > 0)
+		{
+			float dir = waypoints[currentWaypoint] - position.x; //get x distance to waypoint
+			if (glm::abs(dir) > scale.x) //if further than scale
+			{
+				dir = sgn(dir); //turn into -1 0 +1 depending on sign
+				b2Body_SetLinearVelocity(pBody, b2Vec2{ dir * patrolSpeed, b2Body_GetLinearVelocity(pBody).y }); //move towards waypoint at speed patrolSpeed
+			}
+			else //if closer than scale
+			{
+				currentWaypoint = (currentWaypoint + 1) % waypointCount; //increment waypoint number
+			}
+		}
+	}
+};
+
 class Platform : public PhysicsObject
 {
 public:
@@ -600,3 +655,7 @@ bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj)
 		return true;
 	return false;
 }
+
+template <typename T> int sgn(T val) {
+	return (T(0) < val) - (val < T(0));
+} //code from https://stackoverflow.com/questions/1903954/is-there-a-standard-sign-function-signum-sgn-in-c-c

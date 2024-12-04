@@ -58,7 +58,7 @@ float newMoveSpeed = 0.0f;
 const float moveSpeed = 0.66f;
 const float jumpSpeed = 2.5f;
 
-DrawableObject* skibidi;
+PatrolEnemy* skibidi;
 Player* player;
 Shader* basicShader;
 Texture* atlas;
@@ -185,8 +185,9 @@ int init()
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	skibidi = new DrawableObject(glm::vec2(1.0f, 0.0f), glm::radians(45.0f), glm::vec2(0.25f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
 	player = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
+	float enemyWaypoints[2] = { 0.0f, 1.0f };
+	skibidi = new PatrolEnemy(glm::vec2(1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat, player, enemyWaypoints, 2);
 
 	sprites.push_back(skibidi);
 	sprites.push_back(player);
@@ -294,7 +295,7 @@ void loop()
 	if (newMoveSpeed < 0) //if moving left
 	{
 		b2Body_SetLinearVelocity(player->pBody, b2Vec2{ glm::min(b2Body_GetLinearVelocity(player->pBody).x, newMoveSpeed),
-					b2Body_GetLinearVelocity(player->pBody).y }); //apply velocity
+				b2Body_GetLinearVelocity(player->pBody).y }); //apply velocity
 	}
 	else
 	{
@@ -304,8 +305,9 @@ void loop()
 				b2Body_GetLinearVelocity(player->pBody).y }); //apply velocity
 		}
 	}
-
+	skibidi->UpdateEnemy();
 	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4); //step the physics world
+	skibidi->UpdateBody();
 }
 
 void draw()

@@ -2,3 +2,5 @@ Add z value for DrawableObjects and sort transparent ones (all of them lol) when
 	-perhaps don't need to sort with draw instanced
 	-investigate disabling depth buffer drawing as it's likely unnecessary
 	-possible solution: have z value be the z coordinate, sort objects by z coord, draw in order (HOW? i'm using one draw call...)
+Add way for objects to remove htemselves from a vector ie sprites or enemies vector using std::find()
+Add enemies vector instead of calling skibidi->UpdateEnemy
