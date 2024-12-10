@@ -77,7 +77,6 @@ int main(int argv, char** args)
 		loop();
 
 		skibidi->Move(glm::vec2(0.0003f, 0));
-		player->UpdateBody();
 		
 		draw();
 	}
@@ -187,7 +186,7 @@ int init()
 	
 	player = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
 	float enemyWaypoints[2] = { 0.0f, 1.0f };
-	skibidi = new PatrolEnemy(glm::vec2(1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat, player, enemyWaypoints, 2);
+	skibidi = new PatrolEnemy(glm::vec2(1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat, player, 10, enemyWaypoints, 2);
 
 	sprites.push_back(skibidi);
 	sprites.push_back(player);
@@ -244,11 +243,10 @@ static void handleKeysDown(SDL_KeyboardEvent* _key)
 	{
 		if (JumpKey.Press())
 		{
-			canJump = player->isGrounded(); //check if we are grounded
-			if (canJump) //if we can jump
+			if (player->isGrounded) //if we can jump
 			{ //jump
 				b2Body_ApplyLinearImpulseToCenter(player->pBody, b2Vec2{ 0.0f, b2Body_GetMass(player->pBody) * jumpSpeed }, true);
-				canJump = false;
+				player->isGrounded = false;
 			}
 		}
 		return;
@@ -308,6 +306,10 @@ void loop()
 	skibidi->UpdateEnemy();
 	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4); //step the physics world
 	skibidi->UpdateBody();
+	player->UpdateBody();
+
+	player->TestContacts();
+
 }
 
 void draw()

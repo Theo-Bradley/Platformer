@@ -262,7 +262,8 @@ public:
 struct PhysicsUserData
 {
 	bool isGround;
-
+	bool shouldDamage;
+	int damage;
 };
 
 class PhysicsObject : public DrawableObject
@@ -278,9 +279,9 @@ public:
 		b2BodyDef bodyDef = b2DefaultBodyDef();
 		bodyDef.position = b2Vec2{(float)position.x, (float)position.y};
 		if (isDynamic)
-			bodyDef.type = b2_dynamicBody;
+			bodyDef.type = b2BodyType::b2_dynamicBody;
 		else
-			bodyDef.type = b2_staticBody;
+			bodyDef.type = b2BodyType::b2_staticBody;
 		bodyDef.userData = &userData;
 		pBody = b2CreateBody(pWorld, &bodyDef);
 		b2ShapeDef shapeDef = b2DefaultShapeDef();
@@ -533,28 +534,58 @@ public:
 class Player : public PhysicsObject
 {
 public:
+	float health = 100.f;
+	float isAlive = true;
+	bool isGrounded = false;
+
 	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
 		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false}, true)
 	{
 	}
 
-	bool isGrounded()
+	void Die()
 	{
-		int capacity = b2Body_GetContactCapacity(pBody);
-		b2ContactData* contacts = new b2ContactData[capacity];
-		b2Body_GetContactData(pBody, contacts, capacity);
-		for (int i = 0; i < capacity; i++)
+		isAlive = false;
+	}
+
+	void Hit(float _amt)
+	{
+		health -= _amt;
+		if (health <= 0)
+			Die();
+	}
+
+	void TestContacts()
+	{
+		b2ContactEvents worldContactEvents = b2World_GetContactEvents(pWorld); //get contact events
+		for (int i = 0; i < worldContactEvents.beginCount; i++) //loop over each begin contact event
 		{
-			void* contactUserData = b2Body_GetUserData(b2Shape_GetBody(contacts[i].shapeIdA));
-			if (contactUserData != nullptr) //if shape has user data
+			b2BodyId A = b2Shape_GetBody(worldContactEvents.beginEvents[i].shapeIdA); //get bodies for each contact
+			b2BodyId B = b2Shape_GetBody(worldContactEvents.beginEvents[i].shapeIdB); //..
+
+			if (B.index1 == pBody.index1) //if body B is the player
+			{ //swap bodies a and b for ease of coding
+				b2BodyId temp = B;
+				B = A;
+				A = temp;
+			}
+			if (A.index1 == pBody.index1) //if body A is the player
 			{
-				if (((PhysicsUserData*)contactUserData)->isGround == true) //if it has user data it will always be of type PhysicsUserData
-				{ //so we can just c style cast it
-					return true;
+				void* contactUserData = b2Body_GetUserData(B); //get the user data
+				if (contactUserData != nullptr) //if the user data is not null
+				{
+					PhysicsUserData* contactPhysicsUserData = (PhysicsUserData*)contactUserData; //it must be PhysicsUserData so we can just C cast it
+					if (contactPhysicsUserData->shouldDamage == true) //if it should damage the player
+					{
+						Hit(contactPhysicsUserData->damage); //damage by amount
+					}
+					if (contactPhysicsUserData->isGround) //if it's ground
+					{
+						isGrounded = true; //we can jump
+					}
 				}
 			}
 		}
-		return false;
 	}
 };
 
@@ -563,8 +594,8 @@ class Enemy : public PhysicsObject
 public:
 	Player* player;
 
-	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player) :
-		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false }, true)
+	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player, int _damage) :
+		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false, true, _damage}, true)
 	{
 		player = _player;
 	}
@@ -582,13 +613,13 @@ public:
 	unsigned int currentWaypoint = 0;
 	const float patrolSpeed = 0.45f;
 
-	PatrolEnemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player,
+	PatrolEnemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player, int _damage,
 		float* _waypoints, unsigned int _waypointCount) :
-		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player)
+		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player, _damage)
 	{
 		waypointCount = _waypointCount;
 		waypoints = new float[waypointCount]; //populate waypoints with new empty array
-		for (int i = 0; i < waypointCount; i++) //iterate over each waypoint
+		for (unsigned int i = 0; i < waypointCount; i++) //iterate over each waypoint
 		{
 			waypoints[i] = _waypoints[i]; //copy in waypoints
 		} //this means _waypoints doesn't need to live longer than the constructor
@@ -616,7 +647,7 @@ class Platform : public PhysicsObject
 {
 public:
 	Platform(glm::vec2 _pos, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
-		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true }, false) {}
+		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true, false, 0 }, false) {}
 };
 
 glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)

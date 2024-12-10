@@ -1,4 +1,6 @@
 ﻿  main.cpp
+F:\Unreal Projects\Platformer\Platformer\include\types.h(580,33): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\types.h(635,14): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
 box2d.lib(geometry.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(geometry.obj)' or at ''; linking object as if no debug info
 box2d.lib(types.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(types.obj)' or at ''; linking object as if no debug info
 box2d.lib(world.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(world.obj)' or at ''; linking object as if no debug info
