@@ -29,7 +29,6 @@ unsigned int planeIndices[6] = {
 
 
 class DrawableObject;
-glm::vec4 CalculateScreenRect(glm::mat4 projViewMat);
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
 template <typename T> int sgn(T val); //code from https://stackoverflow.com/questions/1903954/is-there-a-standard-sign-function-signum-sgn-in-c-c
@@ -128,6 +127,7 @@ struct InstanceAttributes
 {
 	glm::mat4 pvmMatrix;
 	glm::fvec4 atlasRect; //l,r,t,b
+	glm::vec2 scaleFactor;
 };
 
 class DrawableObject : public Object
@@ -142,19 +142,19 @@ public:
 
 	DrawableObject(glm::vec2 _position, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) : Object(_position)
 	{
-		init(_atlasRect, _pvMatrix);
+		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
 	}
 
 	DrawableObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect,
 		glm::mat4 _pvMatrix) : Object(_position, _scale)
 	{
-		init(_atlasRect, _pvMatrix);
+		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
 	}
 
 	DrawableObject(glm::vec2 _position, glm::float32 _rotation, glm::vec2 _scale, glm::vec4 _atlasRect,
 		glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
 	{
-		init(_atlasRect, _pvMatrix);
+		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
 	}
 
 	glm::mat4 CalculateCombinedMatrix(glm::mat4 pvMat)
@@ -175,6 +175,14 @@ public:
 		return pvMatrix * model; //multiply with stored combined projection view matrix
 	}
 
+	glm::vec2 CalculateScaleFactor()
+	{
+		if (scale.y > scale.x)
+			return glm::vec2(1.0f, scale.y / scale.x);
+		else
+			return glm::vec2(scale.x / scale.y, 1.0f);
+	}
+
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
 	{
 		if (*instanceCount + 1 > MAX_SPRITES) //if MAX_SPRITES are already ready to be drawn
@@ -184,6 +192,7 @@ public:
 			if (outdatedAttribs)
 			{
 				myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix();
+				myInstanceAttributes.scaleFactor = CalculateScaleFactor();
 				outdatedAttribs = false;
 			}
 			GPUInstancedAttributes[*instanceCount] = myInstanceAttributes; //fill next free space in array with my attribs
@@ -193,10 +202,11 @@ public:
 		return false; //else return false (we won't be drawn)
 	}
 
-	void init(glm::fvec4 _atlasRect, glm::mat4 _pvMatrix)
+	void init(glm::fvec4 _atlasRect, glm::mat4 _pvMatrix, glm::vec2 _scaleFactor)
 	{
 		myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix(_pvMatrix); //assign attributes to local struct
 		myInstanceAttributes.atlasRect = _atlasRect; //..
+		myInstanceAttributes.scaleFactor = _scaleFactor;
 		pvMatrix = _pvMatrix;
 		CheckVisible();
 	}
@@ -290,6 +300,23 @@ public:
 		b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
 		b2Body_SetTransform(pBody, b2Vec2{position.x, position.y}, b2MakeRot(rotation));
 	}
+
+	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, PhysicsUserData _userData, float platformPct)
+		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
+	{
+		userData = _userData;
+		b2BodyDef bodyDef = b2DefaultBodyDef();
+		bodyDef.position = b2Vec2{ (float)position.x, (float)position.y };
+		bodyDef.type = b2BodyType::b2_staticBody;
+		bodyDef.userData = &userData;
+		pBody = b2CreateBody(pWorld, &bodyDef);
+		b2ShapeDef shapeDef = b2DefaultShapeDef();
+		shapeDef.friction = 0.5f;
+		b2Polygon bPoly = b2MakeOffsetBox(scale.x / 2.f, (scale.y * platformPct) / 2.f, b2Vec2{ 0.0f, (-scale.y + scale.y * platformPct)/2}, 0);
+		b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
+		b2Body_SetTransform(pBody, b2Vec2{ position.x, position.y }, b2MakeRot(rotation));
+	}
+
 
 	~PhysicsObject()
 	{
@@ -453,7 +480,7 @@ public:
 	{
 	}
 
-	Texture(std::string _path)
+	Texture(std::string _path, GLenum _textureUnit)
 	{
 		unsigned char* data = stbi_load(_path.c_str(), &width, &height, &channels, 0); //load image from disk
 		if (data != NULL) //if image was loaded properly
@@ -477,11 +504,11 @@ public:
 				return; //exit constructor
 			}
 
-			glActiveTexture(GL_TEXTURE0); //select the default texture unit (to avoid messing up another texture unit's texture)
+			glActiveTexture(_textureUnit); //select the default texture unit (to avoid messing up another texture unit's texture)
 			glGenTextures(1, &texture); //gen empty tex
 			glBindTexture(GL_TEXTURE_2D, texture); //bind it
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); //set wrapping values
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); //..
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); //set wrapping values
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); //..
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR); //set filter values
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); //..
 			glTexImage2D(GL_TEXTURE_2D, 0, glType, width, height, 0, glType, GL_UNSIGNED_BYTE, data); //populate texture
@@ -647,15 +674,89 @@ class Platform : public PhysicsObject
 {
 public:
 	Platform(glm::vec2 _pos, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
-		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true, false, 0 }, false) {}
+		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true, false, 0 }, 47.f / 127.f) {}
 };
 
-glm::vec4 CalculateScreenRect(glm::mat4 projViewMat)
+class Camera : public Object
 {
-	glm::vec3 tl = glm::vec4(-1, -1, 0, 1) * glm::inverse(projViewMat);
-	glm::vec3 br = glm::vec4(1, 1, 0, 1) * glm::inverse(projViewMat);
-	return glm::vec4(tl.x, br.x, br.y, tl.y);
-}
+private:
+	bool outdatedView = true;
+public:
+	glm::mat4 view;
+	glm::mat4 proj;
+	float depth;
+
+	Camera(glm::vec3 _pos, float _rot, int width, int height) : Object(glm::vec2(_pos.x, _pos.y), _rot)
+	{
+		depth = _pos.z;
+		view = GetView();
+		float aspect = (float)width / (float)height; //calculate aspect ratio
+		proj = glm::ortho(-aspect, aspect, -1.0f, 1.0f, 0.25f, 5.0f); //calculate orthographic projection matrix
+	}
+
+	glm::mat4 GetView()
+	{
+		if (outdatedView)
+		{
+			glm::vec3 forward = glm::vec3(0.0, 0.0, -1.0);
+			glm::vec4 up4 = glm::vec4(0.0, 1.0, 0.0, 0.0);
+			glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0), rotation, glm::vec3(0.0f, 0.0f, -1.0f));
+			up4 = rotationMatrix * up4;
+			glm::vec3 up3 = glm::vec3(up4.x, up4.y, up4.z);
+			view = glm::lookAt(glm::vec3(position.x, position.y, depth), glm::vec3(position.x, position.y, depth) + forward, up3);
+		}
+		return view;
+	}
+
+	glm::vec4 CalculateScreenRect()
+	{
+		glm::mat4 projViewMat = proj * GetView();
+		glm::vec3 tl = glm::vec4(-1, -1, 0, 1) * glm::inverse(projViewMat);
+		glm::vec3 br = glm::vec4(1, 1, 0, 1) * glm::inverse(projViewMat);
+		return glm::vec4(tl.x, br.x, br.y, tl.y);
+	}
+
+	glm::mat4 GetProjView()
+	{
+		return proj * GetView();
+	}
+
+	void Move(glm::vec2 _amt)
+	{
+		Object::Move(_amt);
+		outdatedView = true;
+	}
+
+	void Scale(glm::vec2 _amt)
+	{
+		Object::Scale(_amt);
+		outdatedView = true;
+	}
+
+	void Rotate(glm::float32 _amt)
+	{
+		Object::Rotate(_amt);
+		outdatedView = true;
+	}
+
+	void SetPosition(glm::vec2 _pos)
+	{
+		Object::SetPosition(_pos);
+		outdatedView = true;
+	}
+
+	void SetScale(glm::vec2 _scale)
+	{
+		Object::SetScale(_scale);
+		outdatedView = true;
+	}
+
+	void SetRotation(glm::float32 _rot)
+	{
+		Object::SetRotation(_rot);
+		outdatedView = true;
+	}
+};
 
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point)
 {

@@ -47,12 +47,13 @@ SDL_GLContext glContext;
 bool running = true;
 InstanceAttributes GPUInstanceAttributes[MAX_SPRITES];
 unsigned int onscreenSprites = 0; //number of sprites to draw with glDrawElementsInstanced
-glm::mat4 projViewMat; //combined projection view matrix
+unsigned int onscreenPlatforms = 0;
 GLuint quadVBO = 0; //quad vertex attribute buffer object
 GLuint quadVIO = 0; //quad vertex indices buffer object
 GLuint quadVAO = 0; //quad vertex array object
 GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
 std::vector<DrawableObject*> sprites;
+std::vector<Platform*> platforms;
 unsigned long long int elapsedTime;
 float newMoveSpeed = 0.0f;
 const float moveSpeed = 0.66f;
@@ -61,8 +62,11 @@ const float jumpSpeed = 2.5f;
 PatrolEnemy* skibidi;
 Player* player;
 Shader* basicShader;
+Shader* platformShader;
 Texture* atlas;
+Texture* platformAtlas;
 Platform* floorPlatform;
+Camera* mainCamera;
 
 bool canJump = false;
 
@@ -135,6 +139,7 @@ int init()
 	glLinkProgram(errShader); //link shaders into one program
 
 	basicShader = new Shader(Path("assets/shaders/basic.vert"), Path("assets/shaders/basic.frag"));
+	platformShader = new Shader(Path("assets/shaders/platform.vert"), Path("assets/shaders/platform.frag"));
 
 	glGenBuffers(1, &quadVBO); //generate empty buffer
 	glGenBuffers(1, &quadVIO); //..
@@ -150,50 +155,55 @@ int init()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(planeIndices), planeIndices, GL_STATIC_DRAW); //populate
 	glGenBuffers(1, &instanceAttributeBuffer); //generate instance attribute buffer on GPU
 	glBindBuffer(GL_ARRAY_BUFFER, instanceAttributeBuffer);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
-	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 20 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 22 * sizeof(GL_FLOAT), (void*)0); //assign attribute struct (layout location + element index), element size, element type (mat4 is 4 rows of 4 floats), stride (size of struct in bytes), start offset (bytes)
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 22 * sizeof(GL_FLOAT), (void*)(4 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 22 * sizeof(GL_FLOAT), (void*)(8 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 22 * sizeof(GL_FLOAT), (void*)(12 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 22 * sizeof(GL_FLOAT), (void*)(16 * sizeof(GL_FLOAT))); //..
+	glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, 22 * sizeof(GL_FLOAT), (void*)(20 * sizeof(GL_FLOAT))); //..
 	glVertexAttribDivisor(2, 1); //tell GPU to update atribute on for each instance when drawing with glDraw..Instanced()
 	glVertexAttribDivisor(3, 1); //..
 	glVertexAttribDivisor(4, 1); //..
 	glVertexAttribDivisor(5, 1); //..
 	glVertexAttribDivisor(6, 1); //..
+	glVertexAttribDivisor(7, 1); //..
 	glEnableVertexAttribArray(2); //"enable" the attribute
 	glEnableVertexAttribArray(3); //I think this just lets opengl read from it at draw time
 	glEnableVertexAttribArray(4); //not 100% sure
 	glEnableVertexAttribArray(5); //..
 	glEnableVertexAttribArray(6); //..
+	glEnableVertexAttribArray(7); //..
 
 	glUseProgram(basicShader->program);
 	glUniform1i(glGetUniformLocation(basicShader->program, "tex"), 0);
 	const glm::vec2 atlasSize = glm::vec2(256.f, 128.f);
 	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlasSize.x, atlasSize.y);
 
-	glm::mat4 viewMat = glm::mat4(1.0f); //identity matrix
-	viewMat = glm::translate(viewMat, -glm::vec3(0.0f, 0.0f, 1.0f)); //translate by inverse of camera position
+	glUseProgram(platformShader->program);
+	glUniform1i(glGetUniformLocation(platformShader->program, "tex"), 1);
+	const glm::vec2 platformAtlasSize = glm::vec2(128.f, 256.f);
+	glUniform2f(glGetUniformLocation(platformShader->program, "atlasSize"), platformAtlasSize.x, platformAtlasSize.y);
 
-	float aspect = (float)width / (float)height; //calculate aspect ratio
-	glm::mat4 projMat = glm::ortho(-aspect, aspect, -1.0f, 1.0f); //calculate orthographic projection matrix
-	projViewMat = projMat * viewMat; //combine projection and view matrices into one matrix
+	mainCamera = new Camera(glm::vec3(0.0f, 0.0f, 3.0f), 0.f, width, height);
 
-	screenRect = CalculateScreenRect(projViewMat);
+	screenRect = mainCamera->CalculateScreenRect();
 
 	//Box2d
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	player = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat);
+	player = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 127.0f, 0.0f, 127.0f), mainCamera->GetProjView());
 	float enemyWaypoints[2] = { 0.0f, 1.0f };
-	skibidi = new PatrolEnemy(glm::vec2(1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 128.0f, 0.0f, 128.0f), projViewMat, player, 10, enemyWaypoints, 2);
+	skibidi = new PatrolEnemy(glm::vec2(1.0f, 0.0f), glm::vec2(0.1f), glm::vec4(0.0f, 127.0f, 0.0f, 127.0f), mainCamera->GetProjView(), player, 10, enemyWaypoints, 2);
 
 	sprites.push_back(skibidi);
 	sprites.push_back(player);
 
-	floorPlatform = new Platform(glm::vec2(0.0f, -0.5f), 0.0f, glm::vec2(3.0f, 0.5f), glm::vec4(0, 0, 0, 0), projViewMat);
+	floorPlatform = new Platform(glm::vec2(0.0f, -0.5f), 0.0f, glm::vec2(3.0f, 0.5f), glm::vec4(0.f, 128.f, 0.f, 128.f), mainCamera->GetProjView());
+	platforms.push_back(floorPlatform);
 
-	atlas = new Texture(Path("assets/sprites/Atlas.png"));
+	atlas = new Texture(Path("assets/sprites/Atlas.png"), GL_TEXTURE0);
+	platformAtlas = new Texture(Path("assets/sprites/PlatformAtlas.png"), GL_TEXTURE1);
 
 	return 0;
 }
@@ -309,7 +319,6 @@ void loop()
 	player->UpdateBody();
 
 	player->TestContacts();
-
 }
 
 void draw()
@@ -323,9 +332,28 @@ void draw()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GPUInstanceAttributes), GPUInstanceAttributes, GL_DYNAMIC_DRAW); //populate instance attrib buffer with tightly packed array
 
 	if (basicShader->isLoaded)
-	{
 		glUseProgram(basicShader->program); //use basic shader
-		glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenSprites); //draw indexed verts instance
-	}
+	else
+		glUseProgram(errShader);
+
+	glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenSprites); //draw indexed verts instance
+
+	onscreenPlatforms = 0;
+	std::for_each(platforms.begin(), platforms.end(), [&](DrawableObject* platform) {platform->DrawInstanced(GPUInstanceAttributes, &onscreenPlatforms); });
+	glBindBuffer(GL_ARRAY_BUFFER, instanceAttributeBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GPUInstanceAttributes), GPUInstanceAttributes, GL_DYNAMIC_DRAW);
+
+	if (platformShader->isLoaded)
+		glUseProgram(platformShader->program);
+	else
+		glUseProgram(errShader);
+
+	glDrawElementsInstanced(GL_TRIANGLES, sizeof(planeIndices), GL_UNSIGNED_INT, 0, onscreenPlatforms);
+
 	SDL_GL_SwapWindow(window); //swap buffers
+}
+
+void LoadLevel1()
+{
+	//Platform* platform = new Platform();
 }
