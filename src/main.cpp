@@ -55,6 +55,7 @@ GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
 std::vector<DrawableObject*> sprites;
 std::vector<Platform*> platforms;
 unsigned long long int elapsedTime;
+unsigned int deltaTime;
 float newMoveSpeed = 0.0f;
 const float moveSpeed = 0.66f;
 const float jumpSpeed = 2.5f;
@@ -298,6 +299,7 @@ void loop()
 {
 	unsigned long long int oldElapsedTime = elapsedTime;
 	elapsedTime = SDL_GetTicks64(); //get elapsed time in ms
+	deltaTime = elapsedTime - oldElapsedTime;
 	handleEvents();
 
 	if (newMoveSpeed < 0) //if moving left
@@ -314,11 +316,18 @@ void loop()
 		}
 	}
 	skibidi->UpdateEnemy();
-	b2World_Step(pWorld, (elapsedTime - oldElapsedTime) / 1000.f, 4); //step the physics world
+	b2World_Step(pWorld, deltaTime / 1000.f, 4); //step the physics world
 	skibidi->UpdateBody();
 	player->UpdateBody();
 
 	player->TestContacts();
+
+	if (mainCamera->Follow(glm::vec2(player->GetPosition().x, player->GetPosition().y + 0.66f), deltaTime)) //if camera following moved the camera
+	{
+		mainCamera->GetProjView(); //update mainCamera.projView
+		std::for_each(sprites.begin(), sprites.end(), [&](DrawableObject* sprite) {sprite->AttribsOutdated(); }); //loop over each sprite and tell it to
+		std::for_each(platforms.begin(), platforms.end(), [&](DrawableObject* platform) {platform->AttribsOutdated(); });//update its instance attribs
+	}
 }
 
 void draw()

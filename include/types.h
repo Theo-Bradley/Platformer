@@ -27,7 +27,6 @@ unsigned int planeIndices[6] = {
 	2, 3, 0
 };
 
-
 class DrawableObject;
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
@@ -135,24 +134,24 @@ class DrawableObject : public Object
 private:
 	InstanceAttributes myInstanceAttributes; //instance attributes for this instance
 	bool isVisible = false; //should this sprite be drawn right now
-	glm::mat4 pvMatrix; //proj view matrix
+	glm::mat4* pvMatrix; //proj view matrix
 	bool outdatedAttribs = true; //do we need to recalc attribs when drawing
 
 public:
 
-	DrawableObject(glm::vec2 _position, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) : Object(_position)
+	DrawableObject(glm::vec2 _position, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) : Object(_position)
 	{
 		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
 	}
 
 	DrawableObject(glm::vec2 _position, glm::vec2 _scale, glm::vec4 _atlasRect,
-		glm::mat4 _pvMatrix) : Object(_position, _scale)
+		glm::mat4* _pvMatrix) : Object(_position, _scale)
 	{
 		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
 	}
 
 	DrawableObject(glm::vec2 _position, glm::float32 _rotation, glm::vec2 _scale, glm::vec4 _atlasRect,
-		glm::mat4 _pvMatrix) : Object(_position, _rotation, _scale)
+		glm::mat4* _pvMatrix) : Object(_position, _rotation, _scale)
 	{
 		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
 	}
@@ -166,13 +165,18 @@ public:
 		return pvMat * model; //multiply with combined projection view matrix
 	}
 
+	void AttribsOutdated()
+	{
+		outdatedAttribs = true;
+	}
+
 	glm::mat4 CalculateCombinedMatrix()
 	{
 		glm::mat4 model = glm::mat4(1.0f); //identity matrix
 		model = glm::translate(model, glm::vec3(position.x, position.y, 0.0f)); //apply translation
 		model = glm::rotate(model, rotation, glm::vec3(0.0f, 0.0f, -1.0f)); //apply rotation (about object center)
 		model = glm::scale(model, glm::vec3(scale.x, scale.y, 1.0f)); //apply scale
-		return pvMatrix * model; //multiply with stored combined projection view matrix
+		return *pvMatrix * model; //multiply with stored combined projection view matrix
 	}
 
 	glm::vec2 CalculateScaleFactor()
@@ -202,9 +206,9 @@ public:
 		return false; //else return false (we won't be drawn)
 	}
 
-	void init(glm::fvec4 _atlasRect, glm::mat4 _pvMatrix, glm::vec2 _scaleFactor)
+	void init(glm::fvec4 _atlasRect, glm::mat4* _pvMatrix, glm::vec2 _scaleFactor)
 	{
-		myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix(_pvMatrix); //assign attributes to local struct
+		myInstanceAttributes.pvmMatrix = CalculateCombinedMatrix(*_pvMatrix); //assign attributes to local struct
 		myInstanceAttributes.atlasRect = _atlasRect; //..
 		myInstanceAttributes.scaleFactor = _scaleFactor;
 		pvMatrix = _pvMatrix;
@@ -282,7 +286,7 @@ public:
 	b2BodyId pBody;
 	PhysicsUserData userData;
 
-	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, PhysicsUserData _userData, bool isDynamic)
+	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, PhysicsUserData _userData, bool isDynamic)
 		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
 	{
 		userData = _userData;
@@ -301,7 +305,7 @@ public:
 		b2Body_SetTransform(pBody, b2Vec2{position.x, position.y}, b2MakeRot(rotation));
 	}
 
-	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, PhysicsUserData _userData, float platformPct)
+	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, PhysicsUserData _userData, float platformPct)
 		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
 	{
 		userData = _userData;
@@ -565,7 +569,7 @@ public:
 	float isAlive = true;
 	bool isGrounded = false;
 
-	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
+	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) :
 		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false}, true)
 	{
 	}
@@ -621,7 +625,7 @@ class Enemy : public PhysicsObject
 public:
 	Player* player;
 
-	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player, int _damage) :
+	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage) :
 		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false, true, _damage}, true)
 	{
 		player = _player;
@@ -640,7 +644,7 @@ public:
 	unsigned int currentWaypoint = 0;
 	const float patrolSpeed = 0.45f;
 
-	PatrolEnemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix, Player* _player, int _damage,
+	PatrolEnemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage,
 		float* _waypoints, unsigned int _waypointCount) :
 		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player, _damage)
 	{
@@ -673,7 +677,7 @@ public:
 class Platform : public PhysicsObject
 {
 public:
-	Platform(glm::vec2 _pos, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4 _pvMatrix) :
+	Platform(glm::vec2 _pos, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) :
 		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true, false, 0 }, 47.f / 127.f) {}
 };
 
@@ -684,6 +688,7 @@ private:
 public:
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::mat4 projView;
 	float depth;
 
 	Camera(glm::vec3 _pos, float _rot, int width, int height) : Object(glm::vec2(_pos.x, _pos.y), _rot)
@@ -716,9 +721,22 @@ public:
 		return glm::vec4(tl.x, br.x, br.y, tl.y);
 	}
 
-	glm::mat4 GetProjView()
+	glm::mat4* GetProjView()
 	{
-		return proj * GetView();
+		projView = proj * GetView();
+		return &projView;
+	}
+
+	bool Follow(glm::vec2 target, unsigned int deltaTime)
+	{
+		glm::vec2 amt = (target - position) * 0.3f * (deltaTime / 1000.f);
+		if (amt.length() > 0)
+		{
+			Move(amt);
+			return true;
+		}
+		else
+			return false;
 	}
 
 	void Move(glm::vec2 _amt)
