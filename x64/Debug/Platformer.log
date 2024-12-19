@@ -1,8 +1,29 @@
 ﻿  main.cpp
 F:\Unreal Projects\Platformer\Platformer\include\types.h(611,33): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-F:\Unreal Projects\Platformer\Platformer\include\types.h(666,14): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-F:\Unreal Projects\Platformer\Platformer\src\main.cpp(302,26): warning C4244: '=': conversion from 'unsigned __int64' to 'unsigned int', possible loss of data
-  Platformer.vcxproj -> F:\Unreal Projects\Platformer\Platformer\build\x64\Debug\Platformer.exe
-  Copy DLLs and Assets
-  0 File(s) copied
-  0 File(s) copied
+F:\Unreal Projects\Platformer\Platformer\include\types.h(677,14): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\src\main.cpp(300,26): warning C4244: '=': conversion from 'unsigned __int64' to 'unsigned int', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\GLM\detail\type_vec2.inl(764,8): error C2296: '^': not valid as left operand has type 'const T'
+          with
+          [
+              T=float
+          ]
+F:\Unreal Projects\Platformer\Platformer\include\types.h(744,38): message : see reference to function template instantiation 'glm::vec<2,float,glm::packed_highp> glm::operator ^<float,glm::packed_highp>(const glm::vec<2,float,glm::packed_highp> &,T)' being compiled
+          with
+          [
+              T=float
+          ]
+F:\Unreal Projects\Platformer\Platformer\include\GLM\detail\type_vec2.inl(764,8): error C2297: '^': not valid as right operand has type 'T'
+          with
+          [
+              T=float
+          ]
+F:\Unreal Projects\Platformer\Platformer\include\GLM\detail\type_vec2.inl(765,8): error C2296: '^': not valid as left operand has type 'const T'
+          with
+          [
+              T=float
+          ]
+F:\Unreal Projects\Platformer\Platformer\include\GLM\detail\type_vec2.inl(765,8): error C2297: '^': not valid as right operand has type 'T'
+          with
+          [
+              T=float
+          ]

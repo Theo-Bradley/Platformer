@@ -618,6 +618,17 @@ public:
 			}
 		}
 	}
+
+	void Jump(float _jumpSpeed)
+	{
+		if (isGrounded)
+		{
+			b2Vec2 vel = b2Body_GetLinearVelocity(pBody);
+			float mass = b2Body_GetMass(pBody);
+			b2Body_ApplyLinearImpulseToCenter(pBody, b2Vec2{ mass * vel.x * 0.3f, mass * _jumpSpeed }, true);
+			isGrounded = false;
+		}
+	}
 };
 
 class Enemy : public PhysicsObject
@@ -729,7 +740,8 @@ public:
 
 	bool Follow(glm::vec2 target, unsigned int deltaTime)
 	{
-		glm::vec2 amt = (target - position) * 0.3f * (deltaTime / 1000.f);
+		const float lerpFac = 0.5f;
+		glm::vec2 amt = (target - position)^2 * lerpFac * (deltaTime / 1000.f);
 		if (amt.length() > 0)
 		{
 			Move(amt);

@@ -33,6 +33,7 @@ void handleKeysDown(SDL_KeyboardEvent* key);
 void handleKeysUp(SDL_KeyboardEvent* key);
 void loop();
 void draw();
+void LoadLevel1();
 #define Path(assetPath) std::string(SDL_GetBasePath() + std::string(##assetPath##))
 
 #pragma region KeyDefinitions
@@ -57,8 +58,8 @@ std::vector<Platform*> platforms;
 unsigned long long int elapsedTime;
 unsigned int deltaTime;
 float newMoveSpeed = 0.0f;
-const float moveSpeed = 0.66f;
-const float jumpSpeed = 2.5f;
+const float moveSpeed = 0.95f;
+const float jumpSpeed = 2.70f;
 
 PatrolEnemy* skibidi;
 Player* player;
@@ -77,6 +78,7 @@ int main(int argv, char** args)
 	//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Working", "It's Working!", NULL); //post a basic messagebox
 
 	elapsedTime = SDL_GetTicks64();
+	LoadLevel1();
 	while (running)
 	{
 		loop();
@@ -200,8 +202,8 @@ int init()
 	sprites.push_back(skibidi);
 	sprites.push_back(player);
 
-	floorPlatform = new Platform(glm::vec2(0.0f, -0.5f), 0.0f, glm::vec2(3.0f, 0.5f), glm::vec4(0.f, 128.f, 0.f, 128.f), mainCamera->GetProjView());
-	platforms.push_back(floorPlatform);
+	//floorPlatform = new Platform(glm::vec2(0.0f, -0.5f), 0.0f, glm::vec2(3.0f, 0.5f), glm::vec4(0.f, 128.f, 0.f, 128.f), mainCamera->GetProjView());
+	//platforms.push_back(floorPlatform);
 
 	atlas = new Texture(Path("assets/sprites/Atlas.png"), GL_TEXTURE0);
 	platformAtlas = new Texture(Path("assets/sprites/PlatformAtlas.png"), GL_TEXTURE1);
@@ -254,11 +256,7 @@ static void handleKeysDown(SDL_KeyboardEvent* _key)
 	{
 		if (JumpKey.Press())
 		{
-			if (player->isGrounded) //if we can jump
-			{ //jump
-				b2Body_ApplyLinearImpulseToCenter(player->pBody, b2Vec2{ 0.0f, b2Body_GetMass(player->pBody) * jumpSpeed }, true);
-				player->isGrounded = false;
-			}
+			player->Jump(jumpSpeed);
 		}
 		return;
 	}
@@ -364,5 +362,14 @@ void draw()
 
 void LoadLevel1()
 {
-	//Platform* platform = new Platform();
+	mainCamera->SetPosition(glm::vec2(0.f, 0.f));
+	platforms.clear();
+	Platform* platform = new Platform(glm::vec2(-0.35f, -0.66f), 0, glm::vec2(1.5f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(1.25f, -0.66f), 0, glm::vec2(0.80f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(2.40f, -0.66f), 0, glm::vec2(0.60f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(4.15f, -0.66f), 0, glm::vec2(2.00f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
 }
