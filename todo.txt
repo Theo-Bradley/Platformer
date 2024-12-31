@@ -3,4 +3,9 @@ Add z value for DrawableObjects and sort transparent ones (all of them lol) when
 	-investigate disabling depth buffer drawing as it's likely unnecessary
 	-possible solution: have z value be the z coordinate, sort objects by z coord, draw in order (HOW? i'm using one draw call...)
 Add way for objects to remove htemselves from a vector ie sprites or enemies vector using std::find()
-Add enemies vector instead of calling skibidi->UpdateEnemy
+Make jump only work if grounded
+Add kill barrier:
+	-sewer water sprite, that damages the player
+	-nice and wide, but x pos is always player x pos
+recude movement speed
+	-compensate jump same distance

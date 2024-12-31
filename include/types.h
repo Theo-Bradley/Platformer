@@ -28,6 +28,7 @@ unsigned int planeIndices[6] = {
 };
 
 class DrawableObject;
+class Player;
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
 template <typename T> int sgn(T val); //code from https://stackoverflow.com/questions/1903954/is-there-a-standard-sign-function-signum-sgn-in-c-c
@@ -136,9 +137,9 @@ private:
 	bool isVisible = false; //should this sprite be drawn right now
 	glm::mat4* pvMatrix; //proj view matrix
 	bool outdatedAttribs = true; //do we need to recalc attribs when drawing
+	bool shouldDraw = true;
 
 public:
-
 	DrawableObject(glm::vec2 _position, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) : Object(_position)
 	{
 		init(_atlasRect, _pvMatrix, CalculateScaleFactor());
@@ -170,6 +171,16 @@ public:
 		outdatedAttribs = true;
 	}
 
+	bool ShouldDraw()
+	{
+		return shouldDraw;
+	}
+
+	void SetShouldDraw(bool _val)
+	{
+		shouldDraw = _val;
+	}
+
 	glm::mat4 CalculateCombinedMatrix()
 	{
 		glm::mat4 model = glm::mat4(1.0f); //identity matrix
@@ -189,6 +200,8 @@ public:
 
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
 	{
+		if (shouldDraw == false) //if we shouldn't be drawing
+			return false; //exit early
 		if (*instanceCount + 1 > MAX_SPRITES) //if MAX_SPRITES are already ready to be drawn
 			return false; //exit early
 		if (isVisible) //if we should be drawn right now
@@ -276,8 +289,10 @@ public:
 struct PhysicsUserData
 {
 	bool isGround;
+	bool isEnemy;
 	bool shouldDamage;
 	int damage;
+	void* pointer;
 };
 
 class PhysicsObject : public DrawableObject
@@ -290,6 +305,7 @@ public:
 		:DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
 	{
 		userData = _userData;
+		userData.pointer = this;
 		b2BodyDef bodyDef = b2DefaultBodyDef();
 		bodyDef.position = b2Vec2{(float)position.x, (float)position.y};
 		if (isDynamic)
@@ -562,6 +578,29 @@ public:
 	}
 };
 
+class Enemy : public PhysicsObject
+{
+public:
+	Player* player;
+
+	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage) :
+		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false, true, true, _damage }, true)
+	{
+		player = _player;
+	}
+
+	virtual void UpdateEnemy()
+	{
+		UpdateBody();
+	}
+
+	virtual void Kill()
+	{
+		SetShouldDraw(false);
+		b2Body_Disable(pBody);
+	}
+};
+
 class Player : public PhysicsObject
 {
 public:
@@ -570,7 +609,7 @@ public:
 	bool isGrounded = false;
 
 	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) :
-		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false}, true)
+		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false, false, false, 0}, true)
 	{
 	}
 
@@ -606,13 +645,29 @@ public:
 				if (contactUserData != nullptr) //if the user data is not null
 				{
 					PhysicsUserData* contactPhysicsUserData = (PhysicsUserData*)contactUserData; //it must be PhysicsUserData so we can just C cast it
-					if (contactPhysicsUserData->shouldDamage == true) //if it should damage the player
-					{
+					if (contactPhysicsUserData->shouldDamage == true && contactPhysicsUserData->isEnemy == false) //if it should damage the player
+					{ //note: we only damage if it is not an enemy, as enemies have their own logic
 						Hit(contactPhysicsUserData->damage); //damage by amount
 					}
 					if (contactPhysicsUserData->isGround) //if it's ground
 					{
 						isGrounded = true; //we can jump
+					}
+					if (contactPhysicsUserData->isEnemy)
+					{
+						if (contactPhysicsUserData->pointer != nullptr)
+						{
+							Enemy* hitEnemy = static_cast<Enemy*>(contactPhysicsUserData->pointer);
+							if (b2Body_GetLinearVelocity(pBody).y < 0
+								&& position.y > hitEnemy->GetPosition().y + hitEnemy->GetScale().y) //mario style, if moving down and above enemy = kill
+							{
+								hitEnemy->Kill();
+							}
+							else
+							{
+								Hit(contactPhysicsUserData->damage);
+							}
+						}
 					}
 				}
 			}
@@ -628,22 +683,6 @@ public:
 			b2Body_ApplyLinearImpulseToCenter(pBody, b2Vec2{ mass * vel.x * 0.3f, mass * _jumpSpeed }, true);
 			isGrounded = false;
 		}
-	}
-};
-
-class Enemy : public PhysicsObject
-{
-public:
-	Player* player;
-
-	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage) :
-		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false, true, _damage}, true)
-	{
-		player = _player;
-	}
-
-	virtual void UpdateEnemy()
-	{
 	}
 };
 
@@ -682,6 +721,7 @@ public:
 				currentWaypoint = (currentWaypoint + 1) % waypointCount; //increment waypoint number
 			}
 		}
+		UpdateBody();
 	}
 };
 
@@ -689,7 +729,7 @@ class Platform : public PhysicsObject
 {
 public:
 	Platform(glm::vec2 _pos, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) :
-		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true, false, 0 }, 47.f / 127.f) {}
+		PhysicsObject(_pos, _rot, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ true, false, false, 0 }, 47.f / 127.f) {}
 };
 
 class Camera : public Object
@@ -740,8 +780,9 @@ public:
 
 	bool Follow(glm::vec2 target, unsigned int deltaTime)
 	{
-		const float lerpFac = 0.5f;
-		glm::vec2 amt = (target - position)^2 * lerpFac * (deltaTime / 1000.f);
+		const float lerpFac = 1.5f;
+		glm::vec2 dir = target - position;
+		glm::vec2 amt = (glm::vec2(pow(dir.x, 3), pow(dir.y, 3))) * lerpFac * (deltaTime / 1000.f);
 		if (amt.length() > 0)
 		{
 			Move(amt);
