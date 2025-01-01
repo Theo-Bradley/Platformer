@@ -9,3 +9,4 @@ Add kill barrier:
 	-nice and wide, but x pos is always player x pos
 recude movement speed
 	-compensate jump same distance
+make player jump when successfully stopming enemy

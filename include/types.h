@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <functional>
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_WINDOWS_UTF8 //change this have ifdef WINDOWS or something similar for crossplatform compilation
 #include <stb/stb_image.h>
@@ -33,9 +34,14 @@ bool RectContainsPoint(glm::vec4 rect, glm::vec3 point);
 bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj);
 template <typename T> int sgn(T val); //code from https://stackoverflow.com/questions/1903954/is-there-a-standard-sign-function-signum-sgn-in-c-c
 
+unsigned long long int elapsedTime;
+unsigned int deltaTime;
+const float moveSpeed = 0.65f;
+const float jumpSpeed = 2.70f;
 GLuint errShader = 0;
 glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
 b2WorldId pWorld;
+Player* player;
 
 class Object
 {
@@ -580,17 +586,35 @@ public:
 
 class Enemy : public PhysicsObject
 {
+protected:
+	bool isActive = true;
+	std::function<void(Enemy*)> CustomLogic;
 public:
 	Player* player;
+	float health = 10.00f;
 
-	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage) :
+	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage, std::function<void(Enemy*)> _CustomLogic) :
 		PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix, PhysicsUserData{ false, true, true, _damage }, true)
 	{
 		player = _player;
+		CustomLogic = _CustomLogic;
+	}
+
+	void Hit(float _dmg)
+	{
+		health -= _dmg;
+		if (health <= 0.00f)
+			Kill();
+	}
+	void CallCustomLogic()
+	{
+		if (CustomLogic != nullptr)
+			CustomLogic(this);
 	}
 
 	virtual void UpdateEnemy()
 	{
+		CallCustomLogic();
 		UpdateBody();
 	}
 
@@ -599,10 +623,27 @@ public:
 		SetShouldDraw(false);
 		b2Body_Disable(pBody);
 	}
+
+	void Activate()
+	{
+		isActive = true;
+	}
+
+	void DeActivate()
+	{
+		isActive = false;
+	}
+
+	bool Isacvite()
+	{
+		return isActive;
+	}
 };
 
 class Player : public PhysicsObject
 {
+private:
+	const float collisionTolerance = 0.05f;
 public:
 	float health = 100.f;
 	float isAlive = true;
@@ -659,9 +700,11 @@ public:
 						{
 							Enemy* hitEnemy = static_cast<Enemy*>(contactPhysicsUserData->pointer);
 							if (b2Body_GetLinearVelocity(pBody).y < 0
-								&& position.y > hitEnemy->GetPosition().y + hitEnemy->GetScale().y) //mario style, if moving down and above enemy = kill
+ 								&& position.y >(hitEnemy->GetPosition().y + hitEnemy->GetScale().y / 2) - collisionTolerance) //mario style, if moving down and above enemy = kill
 							{
-								hitEnemy->Kill();
+								hitEnemy->Hit(10.00f);
+								isGrounded = true;
+								Jump(jumpSpeed);
 							}
 							else
 							{
@@ -680,7 +723,7 @@ public:
 		{
 			b2Vec2 vel = b2Body_GetLinearVelocity(pBody);
 			float mass = b2Body_GetMass(pBody);
-			b2Body_ApplyLinearImpulseToCenter(pBody, b2Vec2{ mass * vel.x * 0.3f, mass * _jumpSpeed }, true);
+			b2Body_ApplyLinearImpulseToCenter(pBody, b2Vec2{ mass * vel.x * 0.45f, mass * _jumpSpeed }, true);
 			isGrounded = false;
 		}
 	}
@@ -689,14 +732,14 @@ public:
 class PatrolEnemy : public Enemy
 {
 public:
-	float* waypoints;
+	float* waypoints; //copied in at construction time
 	unsigned int waypointCount;
 	unsigned int currentWaypoint = 0;
-	const float patrolSpeed = 0.45f;
+	float patrolSpeed = 0.45f;
 
 	PatrolEnemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage,
-		float* _waypoints, unsigned int _waypointCount) :
-		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player, _damage)
+		float* _waypoints, unsigned int _waypointCount, std::function<void(Enemy*)> _CustomLogic) :
+		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player, _damage, _CustomLogic)
 	{
 		waypointCount = _waypointCount;
 		waypoints = new float[waypointCount]; //populate waypoints with new empty array
@@ -708,20 +751,26 @@ public:
 
 	void UpdateEnemy()
 	{
-		if (waypointCount > 0)
+		if (waypointCount > 0 && isActive)
 		{
-			float dir = waypoints[currentWaypoint] - position.x; //get x distance to waypoint
+  			float dir = waypoints[currentWaypoint] - position.x; //get x distance to waypoint
 			if (glm::abs(dir) > scale.x) //if further than scale
 			{
 				dir = sgn(dir); //turn into -1 0 +1 depending on sign
-				b2Body_SetLinearVelocity(pBody, b2Vec2{ dir * patrolSpeed, b2Body_GetLinearVelocity(pBody).y }); //move towards waypoint at speed patrolSpeed
+ 				b2Body_SetLinearVelocity(pBody, b2Vec2{ dir * patrolSpeed, b2Body_GetLinearVelocity(pBody).y }); //move towards waypoint at speed patrolSpeed
 			}
 			else //if closer than scale
 			{
 				currentWaypoint = (currentWaypoint + 1) % waypointCount; //increment waypoint number
 			}
 		}
+		CallCustomLogic();
 		UpdateBody();
+	}
+
+	~PatrolEnemy()
+	{
+		delete[] waypoints;
 	}
 };
 
@@ -829,6 +878,129 @@ public:
 	}
 };
 
+
+enum class AnimationState
+{
+	playing,
+	paused,
+	stopped
+};
+
+enum class AnimationLoop
+{
+	loop,
+	pingpong,
+	clamp,
+	stop
+};
+
+template <class T> class Animation
+{
+protected:
+	T* frames; //copied in at construction time
+	unsigned int frameCount; //number of frames in frames
+	float frameRate; //framerate in frames per second
+	AnimationLoop loopState;
+	AnimationState state = AnimationState::stopped;
+	AnimationState oldState = AnimationState::stopped;
+	unsigned long long int startTime = 0;
+	unsigned int currentFrame = 0;
+
+public:
+
+	Animation(T* _frames, unsigned int _frameCount, float _frameRate, AnimationLoop _loopState)
+	{
+		frameCount = _frameCount;
+		loopState = _loopState;
+		frameRate = _frameRate;
+		frames = new T[frameCount];
+		for (unsigned int i = 0; i < frameCount; i++)
+		{
+			frames[i] = _frames[i];
+		}
+	}
+
+	~Animation()
+	{
+		delete[] frames;
+	}
+
+	T Update()
+	{
+		switch (state)
+		{
+		case AnimationState::playing:
+			if (oldState == AnimationState::stopped)
+				startTime = elapsedTime;
+
+			if (oldState == AnimationState::paused)
+				startTime += deltaTime;
+
+			oldState = state;
+			return GetFrame();
+
+		case AnimationState::paused:
+			startTime += deltaTime;
+			oldState = state;
+			return GetFrame();
+		default:
+			oldState = state;
+			return GetFrame();
+		}
+	}
+
+	void Play()
+	{
+		state = AnimationState::playing;
+	}
+
+	void Pause()
+	{
+		state = AnimationState::paused;
+	}
+
+	void Stop()
+	{
+		state = AnimationState::stopped;
+	}
+
+	AnimationState IsPlaying()
+	{
+		return state;
+	}
+
+private:
+	T GetFrame()
+	{
+		if (state == AnimationState::playing)
+		{
+			float animElapsedTime = (elapsedTime - startTime) / 1000.00f; //elapsed time since startTime in seconds
+			unsigned int frame = floorf(animElapsedTime / frameRate);
+			switch (loopState)
+			{
+			case AnimationLoop::loop:
+				currentFrame = frame % frameCount;
+				break;
+			case AnimationLoop::pingpong:
+				//not implemented
+				currentFrame = currentFrame;
+				break;
+			case AnimationLoop::clamp:
+				currentFrame = glm::clamp(0, (int)frameCount, (int)frame); //must cast to int because of templating
+				break;
+			case AnimationLoop::stop:
+				if (frame > frameCount)
+				{
+					currentFrame = frameCount;
+					state = AnimationState::stopped;
+				}
+				break;
+			}
+		}
+		return frames[currentFrame];
+	}
+};
+
 bool RectContainsPoint(glm::vec4 rect, glm::vec3 point)
 {
 	if (point.x >= rect.x && point.x <= rect.y && point.y <= rect.z && point.y >= rect.w)
@@ -857,6 +1029,20 @@ bool RectContainsSprite(glm::vec4 rect, DrawableObject* obj)
 	if (RectContainsPoint(rect, br))
 		return true;
 	return false;
+}
+
+void ActivateWhenNearPlayer(Enemy* enemy)
+{
+	const float activationDistance = 0.50f;
+	PatrolEnemy* patrolEnemy = static_cast<PatrolEnemy*>(enemy);
+	patrolEnemy->patrolSpeed = 0.30f;
+	if (player != nullptr && patrolEnemy != nullptr)
+	{
+		if (glm::abs(glm::distance(player->GetPosition(), patrolEnemy->GetPosition())) <= (player->GetScale().x + patrolEnemy->GetScale().x) / 2 + activationDistance)
+		{
+			patrolEnemy->Activate();
+		}
+	}
 }
 
 template <typename T> int sgn(T val) {

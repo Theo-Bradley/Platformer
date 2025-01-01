@@ -1,8 +1,17 @@
 ﻿  main.cpp
-F:\Unreal Projects\Platformer\Platformer\include\types.h(650,33): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-F:\Unreal Projects\Platformer\Platformer\include\types.h(668,35): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-F:\Unreal Projects\Platformer\Platformer\include\types.h(716,14): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\types.h(691,33): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\types.h(711,35): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\types.h(759,14): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
 F:\Unreal Projects\Platformer\Platformer\src\main.cpp(295,26): warning C4244: '=': conversion from 'unsigned __int64' to 'unsigned int', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\types.h(978,23): warning C4244: 'initializing': conversion from 'float' to 'unsigned int', possible loss of data
+F:\Unreal Projects\Platformer\Platformer\include\types.h(973,4): message : while compiling class template member function 'T Animation<T>::GetFrame(void)'
+          with
+          [
+              T=glm::vec4
+          ]
+F:\Unreal Projects\Platformer\Platformer\include\types.h(940,4): message : see the first reference to 'Animation<glm::vec4>::GetFrame' in 'Animation<glm::vec4>::Update'
+F:\Unreal Projects\Platformer\Platformer\src\main.cpp(81,28): message : see the first reference to 'Animation<glm::vec4>::Update' in 'SDL_main'
+F:\Unreal Projects\Platformer\Platformer\src\main.cpp(79,17): message : see reference to class template instantiation 'Animation<glm::vec4>' being compiled
 box2d.lib(geometry.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(geometry.obj)' or at ''; linking object as if no debug info
 box2d.lib(types.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(types.obj)' or at ''; linking object as if no debug info
 box2d.lib(world.obj) : warning LNK4099: PDB '' was not found with 'box2d.lib(world.obj)' or at ''; linking object as if no debug info

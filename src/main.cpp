@@ -56,19 +56,15 @@ GLuint instanceAttributeBuffer = 0; //instance attribute buffer object
 std::vector<DrawableObject*> sprites;
 std::vector<Platform*> platforms;
 std::vector<Enemy*> enemies;
-unsigned long long int elapsedTime;
-unsigned int deltaTime;
 float newMoveSpeed = 0.0f;
-const float moveSpeed = 0.95f;
-const float jumpSpeed = 2.70f;
 
-Player* player;
 Shader* basicShader;
 Shader* platformShader;
 Texture* atlas;
 Texture* platformAtlas;
 Platform* floorPlatform;
 Camera* mainCamera;
+Animation<glm::vec4>* testAnim;
 
 bool canJump = false;
 
@@ -79,6 +75,10 @@ int main(int argv, char** args)
 
 	elapsedTime = SDL_GetTicks64();
 	LoadLevel1();
+	glm::vec4* frames = new glm::vec4[4]{ glm::vec4(1.00f), glm::vec4(2.00f), glm::vec4(3.00f), glm::vec4(4.00f) };
+	testAnim = new Animation<glm::vec4>(frames, 4, 0.5f, AnimationLoop::loop);
+	testAnim->Play();
+	glm::vec4 frame = testAnim->Update();
 	while (running)
 	{
 		loop();
@@ -367,17 +367,24 @@ void LoadLevel1()
 	platform = new Platform(glm::vec2(4.15f, -0.66f), 0, glm::vec2(2.00f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
 	platforms.push_back(platform);
 	float* waypoints = new float[2] { 1.25f, 1.60f };
-	Enemy* enemy = new PatrolEnemy(glm::vec2(1.60f, -0.30f), glm::vec2(0.10f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 10, waypoints, 2);
+	Enemy* enemy = new PatrolEnemy(glm::vec2(1.60f, -0.30f), glm::vec2(0.10f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 10, waypoints, 2, nullptr);
 	sprites.push_back(enemy);
 	enemies.push_back(enemy);
 	delete[](waypoints);
 	waypoints = new float[2] { 3.20f, 3.65f };
-	enemy = new PatrolEnemy(glm::vec2(3.40f, -0.30f), glm::vec2(0.10f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 10, waypoints, 2);
+	enemy = new PatrolEnemy(glm::vec2(3.40f, -0.30f), glm::vec2(0.10f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 10, waypoints, 2, nullptr);
 	sprites.push_back(enemy);
 	enemies.push_back(enemy);
 	delete[](waypoints);
 	waypoints = new float[2] { 3.70f, 4.15f };
-	enemy = new PatrolEnemy(glm::vec2(3.90f, -0.30f), glm::vec2(0.10f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 10, waypoints, 2);
+	enemy = new PatrolEnemy(glm::vec2(3.90f, -0.30f), glm::vec2(0.10f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 10, waypoints, 2, nullptr);
+	sprites.push_back(enemy);
+	enemies.push_back(enemy);
+	delete[](waypoints);
+	waypoints = new float[1] { 4.20f };
+	enemy = new PatrolEnemy(glm::vec2(5.00f, -0.20f), glm::vec2(0.166f), glm::vec4(0.f, 127.f, 0.f, 127.f), mainCamera->GetProjView(), player, 15, waypoints, 1, ActivateWhenNearPlayer);
+	enemy->DeActivate();
+	enemy->health = 20.00f;
 	sprites.push_back(enemy);
 	enemies.push_back(enemy);
 	delete[](waypoints);
