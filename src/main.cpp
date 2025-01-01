@@ -34,6 +34,7 @@ void handleKeysUp(SDL_KeyboardEvent* key);
 void loop();
 void draw();
 void LoadLevel1();
+void LoadLevel2();
 #define Path(assetPath) std::string(SDL_GetBasePath() + std::string(##assetPath##))
 
 #pragma region KeyDefinitions
@@ -74,11 +75,8 @@ int main(int argv, char** args)
 	//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Working", "It's Working!", NULL); //post a basic messagebox
 
 	elapsedTime = SDL_GetTicks64();
-	LoadLevel1();
-	glm::vec4* frames = new glm::vec4[4]{ glm::vec4(1.00f), glm::vec4(2.00f), glm::vec4(3.00f), glm::vec4(4.00f) };
-	testAnim = new Animation<glm::vec4>(frames, 4, 0.5f, AnimationLoop::loop);
-	testAnim->Play();
-	glm::vec4 frame = testAnim->Update();
+	//LoadLevel1();
+	LoadLevel2();
 	while (running)
 	{
 		loop();
@@ -192,7 +190,7 @@ int init()
 	b2WorldDef worldDef = b2DefaultWorldDef(); //create a world definition for box2d
 	pWorld = b2CreateWorld(&worldDef); //create a box2d world from that definition
 	
-	player = new Player(glm::vec2(-1.0f, 0.0f), glm::vec4(0.0f, 127.0f, 0.0f, 127.0f), mainCamera->GetProjView());
+	player = new Player(glm::vec2(-0.50f, 0.0f), glm::vec4(0.0f, 127.0f, 0.0f, 127.0f), mainCamera->GetProjView());
 	float enemyWaypoints[2] = { 0.0f, 1.0f };
 
 	sprites.push_back(player);
@@ -356,6 +354,8 @@ void draw()
 
 void LoadLevel1()
 {
+	//delete old enemies
+	//set player position
 	mainCamera->SetPosition(glm::vec2(0.f, 0.f));
 	platforms.clear();
 	Platform* platform = new Platform(glm::vec2(-0.35f, -0.66f), 0, glm::vec2(1.5f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
@@ -388,4 +388,29 @@ void LoadLevel1()
 	sprites.push_back(enemy);
 	enemies.push_back(enemy);
 	delete[](waypoints);
+}
+
+void UnloadLevel()
+{
+	//delete enemies and remove sprites
+	//delete platforms and empty platforms[]
+	//reset HP
+}
+
+void LoadLevel2()
+{
+	mainCamera->SetPosition(glm::vec2(0.00f));
+	platforms.clear();
+	Platform* platform = new Platform(glm::vec2(-0.05f, -0.66f), 0, glm::vec2(1.00f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(1.35f, -0.66f), 0, glm::vec2(1.00f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(1.75f, -0.10f), 0, glm::vec2(0.50f, 0.25f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(3.50f, -0.66f), 0, glm::vec2(2.33f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(5.30f, -0.66f), 0, glm::vec2(0.67f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
+	platform = new Platform(glm::vec2(3.225f, -0.10f), 0, glm::vec2(1.75f, 0.25f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platforms.push_back(platform);
 }

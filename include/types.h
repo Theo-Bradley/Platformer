@@ -37,7 +37,7 @@ template <typename T> int sgn(T val); //code from https://stackoverflow.com/ques
 unsigned long long int elapsedTime;
 unsigned int deltaTime;
 const float moveSpeed = 0.65f;
-const float jumpSpeed = 2.70f;
+const float jumpSpeed = 2.85f;
 GLuint errShader = 0;
 glm::vec4 screenRect; //screen rectangle in world space (l, r, t, b)
 b2WorldId pWorld;
@@ -723,7 +723,7 @@ public:
 		{
 			b2Vec2 vel = b2Body_GetLinearVelocity(pBody);
 			float mass = b2Body_GetMass(pBody);
-			b2Body_ApplyLinearImpulseToCenter(pBody, b2Vec2{ mass * vel.x * 0.45f, mass * _jumpSpeed }, true);
+			b2Body_ApplyLinearImpulseToCenter(pBody, b2Vec2{ mass * vel.x * 0.85f, mass * _jumpSpeed }, true);
 			isGrounded = false;
 		}
 	}

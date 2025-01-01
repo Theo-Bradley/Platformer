@@ -7,6 +7,4 @@ Make jump only work if grounded
 Add kill barrier:
 	-sewer water sprite, that damages the player
 	-nice and wide, but x pos is always player x pos
-recude movement speed
-	-compensate jump same distance
 make player jump when successfully stopming enemy
