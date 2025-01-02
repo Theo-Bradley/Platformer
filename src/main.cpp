@@ -65,7 +65,6 @@ Texture* atlas;
 Texture* platformAtlas;
 Platform* floorPlatform;
 Camera* mainCamera;
-Animation<glm::vec4>* testAnim;
 
 bool canJump = false;
 
@@ -172,11 +171,6 @@ int init()
 	glEnableVertexAttribArray(6); //..
 	glEnableVertexAttribArray(7); //..
 
-	glUseProgram(basicShader->program);
-	glUniform1i(glGetUniformLocation(basicShader->program, "tex"), 0);
-	const glm::vec2 atlasSize = glm::vec2(256.f, 128.f);
-	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlasSize.x, atlasSize.y);
-
 	glUseProgram(platformShader->program);
 	glUniform1i(glGetUniformLocation(platformShader->program, "tex"), 1);
 	const glm::vec2 platformAtlasSize = glm::vec2(128.f, 256.f);
@@ -200,6 +194,10 @@ int init()
 
 	atlas = new Texture(Path("assets/sprites/Atlas.png"), GL_TEXTURE0);
 	platformAtlas = new Texture(Path("assets/sprites/PlatformAtlas.png"), GL_TEXTURE1);
+
+	glUseProgram(basicShader->program);
+	glUniform1i(glGetUniformLocation(basicShader->program, "tex"), 0);
+	glUniform2f(glGetUniformLocation(basicShader->program, "atlasSize"), atlas->width, atlas->height);
 
 	return 0;
 }
@@ -405,12 +403,18 @@ void LoadLevel2()
 	platforms.push_back(platform);
 	platform = new Platform(glm::vec2(1.35f, -0.66f), 0, glm::vec2(1.00f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
 	platforms.push_back(platform);
-	platform = new Platform(glm::vec2(1.75f, -0.10f), 0, glm::vec2(0.50f, 0.25f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platform = new Platform(glm::vec2(1.75f, -0.20f), 0, glm::vec2(0.50f, 0.125f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
 	platforms.push_back(platform);
 	platform = new Platform(glm::vec2(3.50f, -0.66f), 0, glm::vec2(2.33f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
 	platforms.push_back(platform);
 	platform = new Platform(glm::vec2(5.30f, -0.66f), 0, glm::vec2(0.67f, 0.33f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
 	platforms.push_back(platform);
-	platform = new Platform(glm::vec2(3.225f, -0.10f), 0, glm::vec2(1.75f, 0.25f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
+	platform = new Platform(glm::vec2(3.225f, -0.20f), 0, glm::vec2(1.75f, 0.125f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView());
 	platforms.push_back(platform);
+	Enemy* enemy = new Enemy(glm::vec2(1.25f, -0.66f), glm::vec2(0.10f), glm::vec4(0.0f, 127.f, 0.0f, 127.f), mainCamera->GetProjView(), player, 10, nullptr);
+	sprites.push_back(enemy);
+	enemies.push_back(enemy);
+	Saw* saw = new Saw(glm::vec2(1.50f, -0.66f), glm::vec2(0.15f), glm::vec4(128.f, 256.f, 0.f, 127.f), mainCamera->GetProjView(), player);
+	sprites.push_back(saw);
+	enemies.push_back(saw);
 }

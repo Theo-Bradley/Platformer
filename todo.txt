@@ -8,3 +8,4 @@ Add kill barrier:
 	-sewer water sprite, that damages the player
 	-nice and wide, but x pos is always player x pos
 make player jump when successfully stopming enemy
+make sure jump dist is proper

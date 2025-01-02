@@ -204,6 +204,12 @@ public:
 			return glm::vec2(scale.x / scale.y, 1.0f);
 	}
 
+	void SetAtlasRect(glm::vec4 _newRect)
+	{
+		myInstanceAttributes.atlasRect = _newRect;
+		outdatedAttribs = true;
+	}
+
 	bool DrawInstanced(InstanceAttributes* GPUInstancedAttributes, unsigned int* instanceCount)
 	{
 		if (shouldDraw == false) //if we shouldn't be drawing
@@ -325,6 +331,27 @@ public:
 		b2Polygon bPoly = b2MakeBox(scale.x/2.f, scale.y/2.f);
 		b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
 		b2Body_SetTransform(pBody, b2Vec2{position.x, position.y}, b2MakeRot(rotation));
+	}
+
+	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, PhysicsUserData _userData,
+		bool isDynamic, bool canRotate) :DrawableObject(_position, _scale, _atlasRect, _pvMatrix)
+	{
+		userData = _userData;
+		userData.pointer = this;
+		b2BodyDef bodyDef = b2DefaultBodyDef();
+		bodyDef.position = b2Vec2{ (float)position.x, (float)position.y };
+		if (isDynamic)
+			bodyDef.type = b2BodyType::b2_dynamicBody;
+		else
+			bodyDef.type = b2BodyType::b2_staticBody;
+		bodyDef.fixedRotation = !canRotate;
+		bodyDef.userData = &userData;
+		pBody = b2CreateBody(pWorld, &bodyDef);
+		b2ShapeDef shapeDef = b2DefaultShapeDef();
+		shapeDef.friction = 0.5f;
+		b2Polygon bPoly = b2MakeBox(scale.x / 2.f, scale.y / 2.f);
+		b2CreatePolygonShape(pBody, &shapeDef, &bPoly);
+		b2Body_SetTransform(pBody, b2Vec2{ position.x, position.y }, b2MakeRot(rotation));
 	}
 
 	PhysicsObject(glm::vec2 _position, glm::float32 _rot, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, PhysicsUserData _userData, float platformPct)
@@ -600,6 +627,14 @@ public:
 		CustomLogic = _CustomLogic;
 	}
 
+	Enemy(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player, int _damage,
+		std::function<void(Enemy*)> _CustomLogic, bool isDynamic) : PhysicsObject(_pos, 0.0f, _scale, _atlasRect, _pvMatrix,
+			PhysicsUserData{ false, true, true, _damage }, isDynamic)
+	{
+		player = _player;
+		CustomLogic = _CustomLogic;
+	}
+
 	void Hit(float _dmg)
 	{
 		health -= _dmg;
@@ -650,7 +685,7 @@ public:
 	bool isGrounded = false;
 
 	Player(glm::vec2 _pos, glm::vec4 _atlasRect, glm::mat4* _pvMatrix) :
-		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false, false, false, 0}, true)
+		PhysicsObject(_pos, 0.0f, glm::vec2(0.1f, 0.1f), _atlasRect, _pvMatrix, PhysicsUserData{false, false, false, 0}, true, false)
 	{
 	}
 
@@ -878,7 +913,6 @@ public:
 	}
 };
 
-
 enum class AnimationState
 {
 	playing,
@@ -920,9 +954,17 @@ public:
 		}
 	}
 
+	Animation()
+	{
+		frames = nullptr;
+		frameCount = 0;
+		frameRate = 0;
+		loopState = AnimationLoop::stop;
+	}
+
 	~Animation()
 	{
-		delete[] frames;
+		delete[] &frames;
 	}
 
 	T Update()
@@ -975,7 +1017,7 @@ private:
 		if (state == AnimationState::playing)
 		{
 			float animElapsedTime = (elapsedTime - startTime) / 1000.00f; //elapsed time since startTime in seconds
-			unsigned int frame = floorf(animElapsedTime / frameRate);
+			unsigned int frame = (int)floorf(animElapsedTime / frameRate);
 			switch (loopState)
 			{
 			case AnimationLoop::loop:
@@ -998,6 +1040,28 @@ private:
 			}
 		}
 		return frames[currentFrame];
+	}
+};
+
+class Saw : public Enemy
+{
+private:
+	Animation<glm::vec4>* sawAnim;
+
+public:
+	Saw(glm::vec2 _pos, glm::vec2 _scale, glm::vec4 _atlasRect, glm::mat4* _pvMatrix, Player* _player) :
+		Enemy(_pos, _scale, _atlasRect, _pvMatrix, _player, 100, nullptr)
+	{
+		health = 1000.f;
+		glm::vec4 frames[2] = { glm::vec4(128.f, 256.f, 0.f, 127.f), glm::vec4(128.f, 256.f, 128.f, 256.f) };
+		sawAnim = new Animation<glm::vec4>(frames, 2, 0.50f, AnimationLoop::loop);
+		sawAnim->Play();
+	}
+
+	void UpdateEnemy()
+	{
+		SetAtlasRect(sawAnim->Update());
+		UpdateBody();
 	}
 };
 
